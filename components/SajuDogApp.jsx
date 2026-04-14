@@ -254,10 +254,10 @@ export default function SajuDogApp() {
               cursor:"pointer",boxShadow:C.shadowLarge,
             }}>🔮 무료 사주 감정</button>
 
-            <div style={{marginTop:24,padding:"14px 20px",borderRadius:18,background:C.yellow,border:`3px solid ${C.cardBorder}`,boxShadow:C.shadow}}>
+            <button onClick={()=>setStep("form")} className="pop-btn" style={{display:"block",width:"100%",marginTop:24,padding:"14px 20px",borderRadius:18,background:C.yellow,border:`3px solid ${C.cardBorder}`,boxShadow:C.shadow,cursor:"pointer",fontFamily:FONT,textAlign:"left"}}>
               <div style={{fontSize:13,color:C.text,fontWeight:900,marginBottom:4}}>💕 PREMIUM — 주인+강아지 궁합</div>
               <div style={{fontSize:12,color:C.textMid,fontWeight:700}}>사주팔자로 보는 둘의 궁합 · <span style={{color:C.pinkDark,fontWeight:900}}>🎁 무료</span></div>
-            </div>
+            </button>
 
             <div style={{marginTop:20,padding:"16px 20px",borderRadius:18,background:"#fff",border:`3px solid ${C.cardBorder}`,boxShadow:C.shadow,fontSize:12,color:C.textMid,lineHeight:1.9,textAlign:"left",fontWeight:700}}>
               ✦ 사주 원국 · 오행 · 십성 · 신살 · 합충<br/>
