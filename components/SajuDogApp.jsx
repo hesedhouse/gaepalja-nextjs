@@ -240,13 +240,37 @@ export default function SajuDogApp() {
     if(!result || !resultRef.current || saving) return;
     setSaving(true);
     setCapturing(true);
-    // DOM 업데이트 대기 (capture-hide 클래스 적용)
+    // DOM 업데이트 대기 (capture-hide 적용)
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    // 모든 자손 요소의 animation을 강제로 종료하고 opacity:1 인라인 주입
+    // (CSS !important 규칙이 html2canvas 환경에서 무시되는 경우에 대한 강제 대응)
+    const node0 = resultRef.current;
+    const allDescendants = node0 ? node0.querySelectorAll("*") : [];
+    const prevStyles = [];
+    allDescendants.forEach((el) => {
+      prevStyles.push({
+        el,
+        animation: el.style.animation,
+        opacity: el.style.opacity,
+        transform: el.style.transform,
+      });
+      el.style.animation = "none";
+      el.style.opacity = "1";
+      // transform은 레이아웃에 영향 있을 수 있으니 안 건드림
+    });
+
+    // 웹폰트 로딩 확인
+    if (document.fonts && document.fonts.ready) {
+      try { await document.fonts.ready; } catch {}
+    }
+    // 레이아웃 안정화
+    await new Promise(r => setTimeout(r, 150));
 
     try {
       const html2canvas = (await import("html2canvas")).default;
       const node = resultRef.current;
-      const canvas = await html2canvas(node, {
+      const srcCanvas = await html2canvas(node, {
         backgroundColor: "#ffe6f0",
         scale: 2,
         useCORS: true,
@@ -254,28 +278,53 @@ export default function SajuDogApp() {
         logging: false,
         windowWidth: node.scrollWidth,
         windowHeight: node.scrollHeight,
+        // html2canvas는 DOM을 clone해서 off-screen에서 렌더하므로
+        // clone된 doc에 애니메이션 무효화 스타일을 주입해야 fadeIn 등이 초기 상태(opacity:0)로 찍히지 않음
+        onclone: (clonedDoc) => {
+          const style = clonedDoc.createElement("style");
+          style.textContent = `
+            *,*::before,*::after{animation:none !important;transition:none !important}
+            *{opacity:1 !important}
+          `;
+          clonedDoc.head.appendChild(style);
+        },
       });
 
-      // 워터마크: 하단에 흰 바 + 브랜드 텍스트
+      console.log("[capture] src canvas:", srcCanvas.width, "x", srcCanvas.height);
+
+      // 워터마크 바 높이: scale:2 감안해서 물리 픽셀 기준 120px
+      const barH = 120;
+      const w = srcCanvas.width;
+      const h = srcCanvas.height + barH;
+
+      // 원본 + 워터마크 합성용 새 캔버스
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
       const ctx = canvas.getContext("2d");
-      const w = canvas.width;
-      const barH = 90;
+
+      // 배경 채우기 (원본 영역 밖 여백 방지)
+      ctx.fillStyle = "#ffe6f0";
+      ctx.fillRect(0, 0, w, h);
+
+      // 원본 결과 캡처 복사
+      ctx.drawImage(srcCanvas, 0, 0);
+
+      // 워터마크 바: 흰 배경 + 상단 네이비 라인
       ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, canvas.height - barH, w, barH);
-      ctx.strokeStyle = "#1a0033";
-      ctx.lineWidth = 6;
-      ctx.beginPath();
-      ctx.moveTo(0, canvas.height - barH);
-      ctx.lineTo(w, canvas.height - barH);
-      ctx.stroke();
+      ctx.fillRect(0, srcCanvas.height, w, barH);
+      ctx.fillStyle = "#1a0033";
+      ctx.fillRect(0, srcCanvas.height, w, 6);
+
+      // 워터마크 텍스트 (canvas-safe 폰트 사용)
       ctx.fillStyle = "#1a0033";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.font = "900 30px 'Cafe24Ssurround','Pretendard Variable',sans-serif";
-      ctx.fillText("🐾 개팔자 — 우리 강아지 사주풀이", w/2, canvas.height - barH/2 - 14);
+      ctx.font = "900 34px 'Pretendard Variable', Pretendard, -apple-system, sans-serif";
+      ctx.fillText("🐾 개팔자 · 우리 강아지 사주풀이", w/2, srcCanvas.height + 42);
       ctx.fillStyle = "#ff3e9d";
-      ctx.font = "800 24px 'Pretendard Variable',sans-serif";
-      ctx.fillText("gaepalja-nextjs.vercel.app", w/2, canvas.height - barH/2 + 20);
+      ctx.font = "800 26px 'Pretendard Variable', Pretendard, -apple-system, sans-serif";
+      ctx.fillText("gaepalja-nextjs.vercel.app", w/2, srcCanvas.height + 85);
 
       const filename = `개팔자_${result.name}_${Date.now()}.png`;
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
@@ -307,6 +356,11 @@ export default function SajuDogApp() {
       console.error("이미지 저장 실패:", e);
       alert("이미지 저장에 실패했습니다. 다시 시도해주세요.");
     } finally {
+      // 인라인 스타일 원복
+      prevStyles.forEach(({ el, animation, opacity }) => {
+        el.style.animation = animation || "";
+        el.style.opacity = opacity || "";
+      });
       setCapturing(false);
       setSaving(false);
     }
@@ -334,6 +388,8 @@ export default function SajuDogApp() {
         .pop-btn:hover{transform:translate(-2px,-2px)}
         .pop-btn:active{transform:translate(0,0)}
         .capturing .capture-hide{display:none !important}
+        .capturing .anim,.capturing [class*="anim-d"]{animation:none !important;opacity:1 !important;transform:none !important}
+        .capturing *{animation-play-state:paused !important}
       `}</style>
 
       <PopParticles/>
