@@ -256,7 +256,7 @@ export default function SajuDogApp() {
 
             <div style={{marginTop:24,padding:"14px 20px",borderRadius:18,background:C.yellow,border:`3px solid ${C.cardBorder}`,boxShadow:C.shadow}}>
               <div style={{fontSize:13,color:C.text,fontWeight:900,marginBottom:4}}>💕 PREMIUM — 주인+강아지 궁합</div>
-              <div style={{fontSize:12,color:C.textMid,fontWeight:700}}>사주팔자로 보는 둘의 궁합 · <span style={{color:C.pinkDark,fontWeight:900}}>990원</span></div>
+              <div style={{fontSize:12,color:C.textMid,fontWeight:700}}>사주팔자로 보는 둘의 궁합 · <span style={{color:C.pinkDark,fontWeight:900}}>🎁 무료</span></div>
             </div>
 
             <div style={{marginTop:20,padding:"16px 20px",borderRadius:18,background:"#fff",border:`3px solid ${C.cardBorder}`,boxShadow:C.shadow,fontSize:12,color:C.textMid,lineHeight:1.9,textAlign:"left",fontWeight:700}}>
@@ -650,7 +650,7 @@ export default function SajuDogApp() {
                   fontFamily:FONT,cursor:"pointer",
                   background:C.pink,color:"#fff",
                   border:`4px solid ${C.cardBorder}`,marginBottom:10,boxShadow:C.shadowLarge,
-                }}>💕 주인+{result.name} 궁합 보기 · 990원</button>
+                }}>💕 주인+{result.name} 궁합 보기 · 🎁 무료</button>
               )}
 
               <button onClick={()=>{navigator.clipboard?.writeText(getShareText());setCopied(true);setTimeout(()=>setCopied(false),2000);}} className="pop-btn" style={{
