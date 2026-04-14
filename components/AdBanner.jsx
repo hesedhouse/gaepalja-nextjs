@@ -32,21 +32,22 @@ export default function AdBanner({ type }) {
   if (!unitId) {
     return (
       <div style={{
-        background: "linear-gradient(135deg,rgba(255,232,18,0.06),rgba(60,30,10,0.08))",
-        border: "1px dashed rgba(255,232,18,0.2)",
-        borderRadius: 10,
-        padding: "14px 16px",
+        background: "#fff",
+        border: "3px dashed #1a0033",
+        borderRadius: 18,
+        padding: "16px 18px",
         margin: "16px 0",
         textAlign: "center",
         position: "relative",
         overflow: "hidden",
+        fontFamily: "'Cafe24Ssurround','Pretendard Variable',sans-serif",
       }}>
-        <div style={{ fontSize: 11, color: "#8a7e6e", marginBottom: 4 }}>ADVERTISEMENT</div>
-        <div style={{ fontSize: 13, color: "#b0a490", fontWeight: 700 }}>📢 광고 영역 — Kakao AdFit</div>
-        <div style={{ fontSize: 10, color: "#5a5549", marginTop: 4 }}>
-          {type === "loading" ? "사주 감정 중 잠시 기다려주세요..." : "반려견을 위한 최고의 선택"}
+        <div style={{ fontSize: 11, color: "#7c6f95", marginBottom: 4, fontWeight: 900 }}>ADVERTISEMENT</div>
+        <div style={{ fontSize: 13, color: "#1a0033", fontWeight: 900 }}>📢 광고 영역 — Kakao AdFit</div>
+        <div style={{ fontSize: 10, color: "#7c6f95", marginTop: 4, fontWeight: 700 }}>
+          {type === "loading" ? "잠시만 기다려주세요..." : "반려견을 위한 최고의 선택"}
         </div>
-        <div style={{ position: "absolute", top: 6, right: 8, fontSize: 9, color: "#5a5549", background: "rgba(0,0,0,0.2)", padding: "1px 5px", borderRadius: 3 }}>AD</div>
+        <div style={{ position: "absolute", top: 6, right: 8, fontSize: 9, color: "#fff", background: "#ff3e9d", padding: "2px 7px", borderRadius: 50, fontWeight: 900, border: "2px solid #1a0033" }}>AD</div>
       </div>
     );
   }
