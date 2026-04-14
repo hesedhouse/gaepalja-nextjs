@@ -7,6 +7,7 @@ import {
   dog2human, hexRgb,
 } from "../lib/saju";
 import { generateFortune, calcOwnerCompat, getCoupangRecs } from "../lib/fortune";
+import coupangCache from "../public/coupang-recs.json";
 import AdBanner from "./AdBanner";
 
 // ─── DESIGN TOKENS (90s POP) ────────────────────────────────
@@ -108,7 +109,9 @@ export default function SajuDogApp() {
   const [ownerBH,setOBH] = useState("12");
   const [ownerKT,setOKT] = useState(true);
   const [ownerResult,setOR] = useState(null);
-  const [payStep,setPS] = useState("none");
+  // 광고 보상형 궁합: idle → adWatching(카운트다운) → done(결과 표시)
+  const [adStep,setAdStep] = useState("idle");
+  const [adCountdown,setAdCountdown] = useState(3);
 
   const [showShare,setSS] = useState(false);
   const [copied,setCopied] = useState(false);
@@ -134,7 +137,7 @@ export default function SajuDogApp() {
             const dw=calc대운(saju,parseInt(birthYear),breed);
             const 세운=calc세운(saju,2026),월운=calc월운(saju,2026);
             const fortune=generateFortune(name,saju,breed);
-            const coupang=getCoupangRecs(el,missing,breed);
+            const coupang=getCoupangRecs(coupangCache,el,missing,breed);
             const currentDogAge=2026-parseInt(birthYear);
             setResult({saju,일간,el,counts,missing,신살,합충,대운:dw.대운목록,대운주기:dw.주기,평균수명:dw.수명,체급:dw.체급,currentDogAge,세운,월운,fortune,coupang,name,breed,gender});
             setStep("result");
@@ -151,7 +154,7 @@ export default function SajuDogApp() {
 
   const canSubmit=name&&breed&&gender&&birthYear&&birthMonth&&birthDay;
   const handleSubmit=()=>{if(canSubmit){setLI(0);setStep("loading");}};
-  const reset=()=>{setStep("intro");setName("");setBreed("");setGender("");setBY("");setBM("");setBD("");setBH("12");setKT(true);setResult(null);setTab("saju");setOP(false);setOR(null);setPS("none");};
+  const reset=()=>{setStep("intro");setName("");setBreed("");setGender("");setBY("");setBM("");setBD("");setBH("12");setKT(true);setResult(null);setTab("saju");setOP(false);setOR(null);setAdStep("idle");setAdCountdown(3);};
   const goBack=()=>{
     if(step==="form")setStep("intro");
     else if(step==="loading")setStep("form");
@@ -161,13 +164,27 @@ export default function SajuDogApp() {
 
   const handleOwnerAnalysis = () => {
     if(!ownerName||!ownerBY||!ownerBM||!ownerBD) return;
-    const hr=ownerKT?parseInt(ownerBH):12;
-    const ownerSaju=calcSaju(parseInt(ownerBY),parseInt(ownerBM),parseInt(ownerBD),hr);
-    const compat=calcOwnerCompat(result.saju,ownerSaju,result.name);
-    setOR({saju:ownerSaju,compat,name:ownerName});
-    setPS("paid");
-    setOP(true);
+    // 1. 광고 시청 시작 (3초 카운트다운)
+    setAdStep("watching");
+    setAdCountdown(3);
   };
+
+  // 광고 카운트다운 타이머
+  useEffect(()=>{
+    if(adStep!=="watching") return;
+    if(adCountdown<=0){
+      // 카운트다운 끝 → 궁합 계산 + 결과 표시
+      const hr=ownerKT?parseInt(ownerBH):12;
+      const ownerSaju=calcSaju(parseInt(ownerBY),parseInt(ownerBM),parseInt(ownerBD),hr);
+      const compat=calcOwnerCompat(result.saju,ownerSaju,result.name);
+      setOR({saju:ownerSaju,compat,name:ownerName});
+      setOP(true);
+      setAdStep("done");
+      return;
+    }
+    const t=setTimeout(()=>setAdCountdown(c=>c-1),1000);
+    return ()=>clearTimeout(t);
+  },[adStep,adCountdown]);
 
   const years=Array.from({length:100},(_,i)=>2026-i);
   const dogYears=Array.from({length:30},(_,i)=>2026-i);
@@ -463,7 +480,7 @@ export default function SajuDogApp() {
                     <div className="anim premium-glow" style={{...card,background:C.pink,color:"#fff"}}>
                       <div style={{textAlign:"center",marginBottom:14}}>
                         <div style={{fontSize:46,marginBottom:8}}>💕</div>
-                        <h3 style={{fontSize:20,fontWeight:900,color:"#fff",marginBottom:6}}>주인+강아지 사주 궁합</h3>
+                        <h3 style={{fontSize:20,fontWeight:900,color:"#fff",marginBottom:6}}>주인+{result.name} 사주 궁합</h3>
                         <p style={{fontSize:13,color:"#fff",lineHeight:1.7,marginBottom:14,fontWeight:700,opacity:0.95}}>
                           반려인과 {result.name}의 사주팔자를 심층 분석<br/>천생연분인지 확인해보세요!
                         </p>
@@ -472,18 +489,26 @@ export default function SajuDogApp() {
                             <span key={f} style={{fontSize:11,padding:"5px 12px",borderRadius:50,background:"#fff",color:C.text,fontWeight:900,border:`2px solid ${C.cardBorder}`}}>✓ {f}</span>
                           ))}
                         </div>
-                        <div style={{fontSize:36,fontWeight:900,color:C.yellow,marginBottom:4}}>
-                          990<span style={{fontSize:18}}>원</span>
+                        <div style={{fontSize:24,fontWeight:900,color:C.yellow,marginBottom:4}}>
+                          🎁 광고 보고 무료로 보기
                         </div>
-                        <p style={{fontSize:11,color:"#fff",fontWeight:700,opacity:0.9}}>일회성 결제 · 무제한 재확인</p>
+                        <p style={{fontSize:11,color:"#fff",fontWeight:700,opacity:0.9}}>광고 시청 후 결과 확인</p>
                       </div>
                     </div>
 
-                    {payStep==="none"&&(
-                      <button onClick={()=>setPS("confirm")} className="pop-btn" style={{width:"100%",background:C.yellow,color:C.text,border:`4px solid ${C.cardBorder}`,borderRadius:50,padding:"16px",fontSize:16,fontWeight:900,fontFamily:FONT,cursor:"pointer",marginTop:8,boxShadow:C.shadowLarge}}>💕 990원 결제하고 궁합 보기</button>
-                    )}
-
-                    {payStep==="confirm"&&(
+                    {adStep==="watching" ? (
+                      <div className="anim" style={{...card,background:C.text,color:"#fff",textAlign:"center",padding:"32px 18px"}}>
+                        <div style={{fontSize:11,color:C.yellow,marginBottom:8,fontWeight:900,letterSpacing:2}}>ADVERTISEMENT</div>
+                        <div style={{fontSize:14,color:"#fff",marginBottom:18,fontWeight:700,opacity:0.85}}>광고 시청 중입니다...</div>
+                        <AdBanner type="result"/>
+                        <div style={{marginTop:18,fontSize:48,fontWeight:900,color:C.yellow,lineHeight:1}}>
+                          {adCountdown > 0 ? adCountdown : "🎉"}
+                        </div>
+                        <div style={{fontSize:12,color:"#fff",marginTop:8,fontWeight:700,opacity:0.7}}>
+                          {adCountdown > 0 ? `${adCountdown}초 후 결과 확인 가능` : "결과 준비 완료!"}
+                        </div>
+                      </div>
+                    ) : (
                       <div className="anim" style={{...card,marginTop:12}}>
                         <h4 style={{fontSize:15,fontWeight:900,color:C.text,marginBottom:14}}>반려인 정보 입력</h4>
                         <div style={{marginBottom:14}}>
@@ -506,26 +531,15 @@ export default function SajuDogApp() {
                           {ownerKT?(<select value={ownerBH} onChange={e=>setOBH(e.target.value)} style={inp}>{hours.map(h=><option key={h} value={h}>{String(h).padStart(2,"0")}시</option>)}</select>):(<p style={{fontSize:11,color:C.textLight,fontWeight:700}}>※ 午시(정오)로 계산</p>)}
                         </div>
 
-                        <div style={{background:C.cyan,borderRadius:12,padding:"14px 16px",marginBottom:14,border:`3px solid ${C.cardBorder}`}}>
-                          <div style={{display:"flex",justifyContent:"space-between",fontSize:14,color:C.text,marginBottom:10,fontWeight:900}}>
-                            <span>주인+강아지 궁합 분석</span><span>990원</span>
-                          </div>
-                          <div style={{display:"flex",gap:6}}>
-                            {["카카오페이","네이버페이","카드결제"].map(m=>(
-                              <div key={m} style={{flex:1,padding:"9px 0",borderRadius:50,textAlign:"center",fontSize:11,background:"#fff",border:`2px solid ${C.cardBorder}`,color:C.text,fontWeight:900,cursor:"pointer"}}>{m}</div>
-                            ))}
-                          </div>
-                        </div>
-
                         <button onClick={handleOwnerAnalysis} disabled={!ownerName||!ownerBY||!ownerBM||!ownerBD} className="pop-btn" style={{
-                          width:"100%",padding:"15px",borderRadius:50,fontSize:15,fontWeight:900,fontFamily:FONT,
+                          width:"100%",padding:"16px",borderRadius:50,fontSize:15,fontWeight:900,fontFamily:FONT,
                           cursor:ownerName&&ownerBY&&ownerBM&&ownerBD?"pointer":"not-allowed",
                           border:`4px solid ${ownerName&&ownerBY&&ownerBM&&ownerBD?C.cardBorder:"#ccc"}`,
                           background:ownerName&&ownerBY&&ownerBM&&ownerBD?C.pink:"#e8e0ed",
                           color:ownerName&&ownerBY&&ownerBM&&ownerBD?"#fff":"#aaa",
                           boxShadow:ownerName&&ownerBY&&ownerBM&&ownerBD?C.shadowLarge:"none",
-                        }}>💕 결제 및 궁합 감정하기</button>
-                        <p style={{textAlign:"center",fontSize:10,color:C.textLight,marginTop:8,fontWeight:700}}>※ 데모 — 실제 결제는 이루어지지 않습니다</p>
+                        }}>🎁 광고 보고 무료로 확인하기</button>
+                        <p style={{textAlign:"center",fontSize:10,color:C.textLight,marginTop:8,fontWeight:700}}>※ 광고 3초 시청 후 즉시 결과 확인</p>
                       </div>
                     )}
                   </div>
@@ -586,24 +600,34 @@ export default function SajuDogApp() {
                   </p>
                 </div>
 
-                {result.coupang.map((item,i)=>(
-                  <div key={i} className="anim" style={{...card,animationDelay:`${i*0.06}s`,cursor:"pointer"}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
-                      <div style={{flex:1}}>
-                        <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:6}}>
-                          <span style={{fontSize:10,padding:"3px 10px",borderRadius:50,fontWeight:900,background:item.tag.includes("보완")?C.pink:C.yellow,color:item.tag.includes("보완")?"#fff":C.text,border:`2px solid ${C.cardBorder}`}}>{item.tag}</span>
-                        </div>
-                        <div style={{fontSize:15,fontWeight:900,color:C.text,marginBottom:4}}>{item.name}</div>
-                        <p style={{fontSize:12,color:C.textMid,fontWeight:700}}>{item.desc}</p>
-                      </div>
-                      <div style={{textAlign:"right",minWidth:80}}>
-                        <div style={{fontSize:16,fontWeight:900,color:C.pinkDark}}>{item.price}</div>
-                      </div>
-                    </div>
-                    <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6}}>
-                      <span style={{fontSize:11,color:C.pinkDark,fontWeight:900}}>쿠팡에서 보기 →</span>
-                    </div>
+                {result.coupang.length === 0 && (
+                  <div style={{...card,textAlign:"center",padding:24}}>
+                    <p style={{fontSize:13,color:C.textMid,fontWeight:700}}>추천 상품 준비 중입니다 🐾</p>
                   </div>
+                )}
+
+                {result.coupang.map((item,i)=>(
+                  <a key={i} href={item.url} target="_blank" rel="noopener noreferrer" className="anim pop-btn" style={{...card,animationDelay:`${i*0.06}s`,cursor:"pointer",textDecoration:"none",display:"block"}}>
+                    <div style={{display:"flex",gap:12,alignItems:"flex-start"}}>
+                      {item.image && (
+                        <div style={{flexShrink:0,width:80,height:80,borderRadius:12,overflow:"hidden",border:`3px solid ${C.cardBorder}`,background:"#f5f5f5"}}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={item.image} alt={item.name} loading="lazy" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                        </div>
+                      )}
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:6,flexWrap:"wrap"}}>
+                          <span style={{fontSize:10,padding:"3px 10px",borderRadius:50,fontWeight:900,background:item.tag.includes("보완")?C.pink:C.yellow,color:item.tag.includes("보완")?"#fff":C.text,border:`2px solid ${C.cardBorder}`}}>{item.tag}</span>
+                          {item.isRocket && <span style={{fontSize:9,padding:"3px 8px",borderRadius:50,fontWeight:900,background:C.cyan,color:C.text,border:`2px solid ${C.cardBorder}`}}>🚀 로켓</span>}
+                        </div>
+                        <div style={{fontSize:13,fontWeight:900,color:C.text,marginBottom:6,lineHeight:1.4,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{item.name}</div>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                          <span style={{fontSize:15,fontWeight:900,color:C.pinkDark}}>{item.price}</span>
+                          <span style={{fontSize:11,color:C.pinkDark,fontWeight:900}}>쿠팡에서 보기 →</span>
+                        </div>
+                      </div>
+                    </div>
+                  </a>
                 ))}
 
                 <p style={{fontSize:10,color:C.textLight,textAlign:"center",marginTop:8,lineHeight:1.5,fontWeight:700}}>
