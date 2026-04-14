@@ -115,6 +115,8 @@ export default function SajuDogApp() {
 
   const [showShare,setSS] = useState(false);
   const [copied,setCopied] = useState(false);
+  const [capturing,setCapturing] = useState(false);
+  const [saving,setSaving] = useState(false);
 
   const resultRef = useRef(null);
   const shareRef = useRef(null);
@@ -233,6 +235,83 @@ export default function SajuDogApp() {
     setSS(true);
   };
 
+  // 결과 화면을 PNG로 저장 — 워터마크 + iOS fallback 포함
+  const handleDownloadImage = async () => {
+    if(!result || !resultRef.current || saving) return;
+    setSaving(true);
+    setCapturing(true);
+    // DOM 업데이트 대기 (capture-hide 클래스 적용)
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const node = resultRef.current;
+      const canvas = await html2canvas(node, {
+        backgroundColor: "#ffe6f0",
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        windowWidth: node.scrollWidth,
+        windowHeight: node.scrollHeight,
+      });
+
+      // 워터마크: 하단에 흰 바 + 브랜드 텍스트
+      const ctx = canvas.getContext("2d");
+      const w = canvas.width;
+      const barH = 90;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, canvas.height - barH, w, barH);
+      ctx.strokeStyle = "#1a0033";
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(0, canvas.height - barH);
+      ctx.lineTo(w, canvas.height - barH);
+      ctx.stroke();
+      ctx.fillStyle = "#1a0033";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = "900 30px 'Cafe24Ssurround','Pretendard Variable',sans-serif";
+      ctx.fillText("🐾 개팔자 — 우리 강아지 사주풀이", w/2, canvas.height - barH/2 - 14);
+      ctx.fillStyle = "#ff3e9d";
+      ctx.font = "800 24px 'Pretendard Variable',sans-serif";
+      ctx.fillText("gaepalja-nextjs.vercel.app", w/2, canvas.height - barH/2 + 20);
+
+      const filename = `개팔자_${result.name}_${Date.now()}.png`;
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+      if (isIOS) {
+        // iOS Safari는 download 속성 무시 → 새 탭에 이미지 띄우고 안내
+        const dataUrl = canvas.toDataURL("image/png");
+        const win = window.open();
+        if (win) {
+          win.document.write(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>${filename}</title><style>body{margin:0;padding:16px;background:#ffe6f0;font-family:-apple-system,sans-serif;text-align:center}img{max-width:100%;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.15)}p{color:#1a0033;font-weight:700;margin-top:16px;font-size:14px;line-height:1.5}</style></head><body><img src="${dataUrl}" alt="개팔자 결과"/><p>👆 이미지를 <b>길게 눌러</b><br/>'사진에 저장'을 선택해주세요</p></body></html>`);
+          win.document.close();
+        } else {
+          alert("팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요.");
+        }
+      } else {
+        canvas.toBlob((blob) => {
+          if(!blob) return;
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }, "image/png");
+      }
+    } catch (e) {
+      console.error("이미지 저장 실패:", e);
+      alert("이미지 저장에 실패했습니다. 다시 시도해주세요.");
+    } finally {
+      setCapturing(false);
+      setSaving(false);
+    }
+  };
+
   return (
     <div style={{minHeight:"100vh",background:C.bg,color:C.text,fontFamily:FONT,position:"relative"}}>
       <style>{`
@@ -254,6 +333,7 @@ export default function SajuDogApp() {
         .pop-btn{transition:all 0.15s}
         .pop-btn:hover{transform:translate(-2px,-2px)}
         .pop-btn:active{transform:translate(0,0)}
+        .capturing .capture-hide{display:none !important}
       `}</style>
 
       <PopParticles/>
@@ -362,15 +442,15 @@ export default function SajuDogApp() {
 
         {/* ═══ RESULT ═══ */}
         {step==="result"&&result&&(
-          <div ref={resultRef} style={{animation:"fadeIn 0.5s ease-out"}}>
+          <div ref={resultRef} className={capturing?"capturing":""} style={{animation:"fadeIn 0.5s ease-out"}}>
             <div className="anim" style={{textAlign:"center",marginBottom:18}}>
               <h2 style={{fontSize:28,fontWeight:900,color:C.text,marginBottom:4}}>{result.name}</h2>
               <p style={{fontSize:12,color:C.textMid,fontWeight:700}}>{result.breed} · {result.gender} · {birthYear}.{birthMonth}.{birthDay}</p>
             </div>
 
-            <AdBanner type="result"/>
+            <div className="capture-hide"><AdBanner type="result"/></div>
 
-            <div className="anim anim-d1" style={{display:"flex",gap:8,marginBottom:16,overflowX:"auto",whiteSpace:"nowrap",paddingBottom:6}}>
+            <div className="anim anim-d1 capture-hide" style={{display:"flex",gap:8,marginBottom:16,overflowX:"auto",whiteSpace:"nowrap",paddingBottom:6}}>
               {[
                 {id:"saju",label:"사주원국"},
                 {id:"fortune",label:"토정비결"},
@@ -670,7 +750,14 @@ export default function SajuDogApp() {
               </div>
             )}
 
-            <div style={{marginTop:20}}>
+            <div className="capture-hide" style={{marginTop:20}}>
+              <button onClick={handleDownloadImage} disabled={saving} className="pop-btn" style={{
+                width:"100%",padding:"15px",borderRadius:50,fontSize:15,fontWeight:900,
+                fontFamily:FONT,cursor:saving?"wait":"pointer",
+                background:saving?"#e8e0ed":C.cyan,color:C.text,
+                border:`4px solid ${C.cardBorder}`,marginBottom:10,boxShadow:C.shadow,
+              }}>{saving?"⏳ 이미지 만드는 중...":"📸 결과 이미지로 저장하기"}</button>
+
               <button onClick={handleKakaoShare} className="pop-btn" style={{
                 width:"100%",padding:"15px",borderRadius:50,fontSize:15,fontWeight:900,
                 fontFamily:FONT,cursor:"pointer",
@@ -721,7 +808,7 @@ export default function SajuDogApp() {
               </div>
             )}
 
-            <div style={{textAlign:"center",marginTop:14,paddingBottom:20}}>
+            <div className="capture-hide" style={{textAlign:"center",marginTop:14,paddingBottom:20}}>
               <button onClick={reset} className="pop-btn" style={{background:C.cyan,color:C.text,border:`3px solid ${C.cardBorder}`,borderRadius:50,padding:"13px 36px",fontSize:14,fontWeight:900,fontFamily:FONT,cursor:"pointer",boxShadow:C.shadow}}>🔄 다시 감정하기</button>
               <p style={{fontSize:10,color:C.textLight,marginTop:14,fontWeight:700}}>※ 본 사주풀이는 재미를 위한 것입니다 🐶</p>
             </div>
