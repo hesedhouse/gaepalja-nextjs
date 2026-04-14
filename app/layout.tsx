@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
+import KakaoLoader from "../components/KakaoLoader";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://gaepalja-nextjs.vercel.app"),
@@ -55,6 +56,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             async
           />
         )}
+        {/* 카카오 JavaScript SDK — 공유 기능 (Client Component로 분리) */}
+        <KakaoLoader />
       </body>
     </html>
   );

@@ -199,6 +199,40 @@ export default function SajuDogApp() {
     return `🐾 개팔자 감정 결과\n\n🐕 ${result.name} (${result.breed})\n${오행이모지[el]} ${오행명[el]}(${el}) 기운의 "${result.fortune.성격.title}"\n\n📜 2026년 총운: ${result.fortune.총운[0]}\n${result.fortune.총운[2].slice(0,60)}...\n\n🔮 우리 강아지 사주 보러가기 👇\n${process.env.NEXT_PUBLIC_SITE_URL || "https://gaepalja-nextjs.vercel.app"}`;
   };
 
+  // 카카오톡 공유하기 — Kakao SDK가 로드되어 있으면 sendDefault 호출, 아니면 텍스트 복사 fallback
+  const handleKakaoShare = () => {
+    if(!result) return;
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://gaepalja-nextjs.vercel.app";
+    const el = result.el;
+    const title = `🐾 ${result.name}의 개팔자 결과`;
+    const description = `${오행이모지[el]} ${오행명[el]}(${el}) 기운의 "${result.fortune.성격.title}"\n${result.fortune.총운[0]}`;
+
+    if (typeof window !== "undefined" && window.Kakao && window.Kakao.isInitialized && window.Kakao.isInitialized()) {
+      try {
+        window.Kakao.Share.sendDefault({
+          objectType: "feed",
+          content: {
+            title,
+            description,
+            imageUrl: `${siteUrl}/logo.png`,
+            link: { mobileWebUrl: siteUrl, webUrl: siteUrl },
+          },
+          buttons: [
+            {
+              title: "🔮 나도 우리 강아지 사주 보기",
+              link: { mobileWebUrl: siteUrl, webUrl: siteUrl },
+            },
+          ],
+        });
+        return;
+      } catch (e) {
+        console.warn("Kakao Share failed, falling back to clipboard:", e);
+      }
+    }
+    // Fallback: 텍스트 복사 + 모달
+    setSS(true);
+  };
+
   return (
     <div style={{minHeight:"100vh",background:C.bg,color:C.text,fontFamily:FONT,position:"relative"}}>
       <style>{`
@@ -637,7 +671,7 @@ export default function SajuDogApp() {
             )}
 
             <div style={{marginTop:20}}>
-              <button onClick={()=>setSS(true)} className="pop-btn" style={{
+              <button onClick={handleKakaoShare} className="pop-btn" style={{
                 width:"100%",padding:"15px",borderRadius:50,fontSize:15,fontWeight:900,
                 fontFamily:FONT,cursor:"pointer",
                 background:"#fee500",color:"#1a1a1a",
