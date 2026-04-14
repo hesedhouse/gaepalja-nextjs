@@ -38,26 +38,26 @@ function PopParticles(){
   </div>);
 }
 
-function Header({ showHome, onHome }) {
+function Header({ showBack, onBack, onHome }) {
   return (
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 4px 18px"}}>
       <button
-        onClick={onHome}
-        disabled={!showHome}
+        onClick={onBack}
+        disabled={!showBack}
         style={{
-          display:"flex",alignItems:"center",gap:8,
-          background:showHome?C.yellow:"transparent",
-          border:showHome?`3px solid ${C.cardBorder}`:"3px solid transparent",
-          borderRadius:50,padding:showHome?"8px 14px":"8px 0",
+          display:"flex",alignItems:"center",gap:6,
+          background:showBack?C.cyan:"transparent",
+          border:showBack?`3px solid ${C.cardBorder}`:"3px solid transparent",
+          borderRadius:50,padding:showBack?"8px 16px":"8px 0",
           fontSize:13,fontWeight:900,fontFamily:FONT,color:C.text,
-          cursor:showHome?"pointer":"default",
-          boxShadow:showHome?C.shadow:"none",
+          cursor:showBack?"pointer":"default",
+          boxShadow:showBack?C.shadow:"none",
           transition:"transform 0.15s",
         }}
-        onMouseEnter={e=>{if(showHome)e.currentTarget.style.transform="translate(-2px,-2px)"}}
-        onMouseLeave={e=>{if(showHome)e.currentTarget.style.transform="translate(0,0)"}}
+        onMouseEnter={e=>{if(showBack)e.currentTarget.style.transform="translate(-2px,-2px)"}}
+        onMouseLeave={e=>{if(showBack)e.currentTarget.style.transform="translate(0,0)"}}
       >
-        {showHome && <><span style={{fontSize:16}}>🏠</span><span>HOME</span></>}
+        {showBack && <><span style={{fontSize:18,lineHeight:1}}>←</span><span>BACK</span></>}
       </button>
       <button
         onClick={onHome}
@@ -152,6 +152,12 @@ export default function SajuDogApp() {
   const canSubmit=name&&breed&&gender&&birthYear&&birthMonth&&birthDay;
   const handleSubmit=()=>{if(canSubmit){setLI(0);setStep("loading");}};
   const reset=()=>{setStep("intro");setName("");setBreed("");setGender("");setBY("");setBM("");setBD("");setBH("12");setKT(true);setResult(null);setTab("saju");setOP(false);setOR(null);setPS("none");};
+  const goBack=()=>{
+    if(step==="form")setStep("intro");
+    else if(step==="loading")setStep("form");
+    else if(step==="result")setStep("form");
+  };
+  const goCompat=()=>{setTab("compat");if(resultRef.current)resultRef.current.scrollIntoView({behavior:"smooth"});};
 
   const handleOwnerAnalysis = () => {
     if(!ownerName||!ownerBY||!ownerBM||!ownerBD) return;
@@ -204,7 +210,7 @@ export default function SajuDogApp() {
       <div style={{position:"relative",zIndex:1,maxWidth:540,margin:"0 auto",padding:"0 16px 60px"}}>
 
         {/* HEADER (모든 페이지 공통) */}
-        <Header showHome={step!=="intro"} onHome={reset}/>
+        <Header showBack={step!=="intro"} onBack={goBack} onHome={reset}/>
 
         {/* ═══ INTRO ═══ */}
         {step==="intro"&&(
@@ -613,6 +619,15 @@ export default function SajuDogApp() {
                 background:"#fee500",color:"#1a1a1a",
                 border:`4px solid ${C.cardBorder}`,marginBottom:10,boxShadow:C.shadow,
               }}>📤 카카오톡으로 공유하기</button>
+
+              {!ownerPaid && tab!=="compat" && (
+                <button onClick={goCompat} className="pop-btn premium-glow" style={{
+                  width:"100%",padding:"16px",borderRadius:50,fontSize:15,fontWeight:900,
+                  fontFamily:FONT,cursor:"pointer",
+                  background:C.pink,color:"#fff",
+                  border:`4px solid ${C.cardBorder}`,marginBottom:10,boxShadow:C.shadowLarge,
+                }}>💕 주인+{result.name} 궁합 보기 · 990원</button>
+              )}
 
               <button onClick={()=>{navigator.clipboard?.writeText(getShareText());setCopied(true);setTimeout(()=>setCopied(false),2000);}} className="pop-btn" style={{
                 width:"100%",padding:"13px",borderRadius:50,fontSize:13,fontWeight:900,
