@@ -121,7 +121,7 @@ export default function SajuDogApp() {
   const getShareText = () => {
     if(!result) return "";
     const el=result.el;
-    return `🐾 사주개팔자 감정 결과\n\n🐕 ${result.name} (${result.breed})\n${오행이모지[el]} ${오행명[el]}(${el}) 기운의 "${result.fortune.성격.title}"\n\n📜 2026년 총운: ${result.fortune.총운[0]}\n${result.fortune.총운[2].slice(0,60)}...\n\n🔮 나도 우리 강아지 사주 보러가기 👇\n${process.env.NEXT_PUBLIC_SITE_URL || "https://sajugae.app"}`;
+    return `🐾 사주개팔자 감정 결과\n\n🐕 ${result.name} (${result.breed})\n${오행이모지[el]} ${오행명[el]}(${el}) 기운의 "${result.fortune.성격.title}"\n\n📜 2026년 총운: ${result.fortune.총운[0]}\n${result.fortune.총운[2].slice(0,60)}...\n\n🔮 나도 우리 강아지 사주 보러가기 👇\n${process.env.NEXT_PUBLIC_SITE_URL || "https://gaepalja-nextjs.vercel.app"}`;
   };
 
   return (
@@ -588,7 +588,7 @@ export default function SajuDogApp() {
                       <span style={{fontSize:14,fontWeight:700,color:오행색[result.el]}}>{오행이모지[result.el]} {오행명[result.el]} 기운</span>
                     </div>
                     <p style={{fontSize:13,fontWeight:700,color:"#c0b4a0",marginTop:10}}>"{result.fortune.성격.title}"</p>
-                    <p style={{fontSize:10,color:"#6a5f53",marginTop:10}}>sajugae.app</p>
+                    <p style={{fontSize:10,color:"#6a5f53",marginTop:10}}>gaepalja-nextjs.vercel.app</p>
                   </div>
 
                   <div style={{display:"flex",gap:8}}>
