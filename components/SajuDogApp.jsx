@@ -133,6 +133,8 @@ export default function SajuDogApp() {
 
   const [showShare,setSS] = useState(false);
   const [copied,setCopied] = useState(false);
+  // 프리미엄 플로우: intro 의 PREMIUM 버튼 → 반려견+반려인 통합 폼 → 광고 → 결과(궁합 탭)
+  const [premiumMode,setPremiumMode] = useState(false);
 
   const resultRef = useRef(null);
 
@@ -155,6 +157,35 @@ export default function SajuDogApp() {
       return()=>clearInterval(iv);
     }
   },[step]);
+
+  // 프리미엄 로딩: 한 번에 강아지 사주 + 궁합 모두 계산, 광고 5초 시청 후 결과의 궁합 탭으로 점프
+  useEffect(() => {
+    if (step !== "premiumLoading") return;
+    // 1) 강아지 사주
+    const dogResult = buildResult({ name, breed, gender, birthYear, birthMonth, birthDay, birthHour, knowTime });
+    setResult(dogResult);
+    // 2) 반려인 사주 + 궁합
+    const ohr = ownerKT ? parseInt(ownerBH) : 12;
+    const ownerSaju = calcSaju(parseInt(ownerBY), parseInt(ownerBM), parseInt(ownerBD), ohr);
+    const compat = calcOwnerCompat(dogResult.saju, ownerSaju, dogResult.name);
+    setOR({ saju: ownerSaju, compat, name: ownerName });
+    setOP(true);
+    // 3) 로딩 메시지 + 광고 카운트다운 (5초)
+    let ticks = 0;
+    const msgIv = setInterval(() => {
+      ticks++;
+      setLI(p => (p < loadMsgs.length - 1 ? p + 1 : p));
+      if (ticks >= 5) {
+        clearInterval(msgIv);
+        setTab("compat");
+        setStep("result");
+      }
+    }, 1000);
+    const cdIv = setInterval(() => {
+      setAdCountdown(c => (c > 0 ? c - 1 : 0));
+    }, 1000);
+    return () => { clearInterval(msgIv); clearInterval(cdIv); };
+  }, [step]);
 
   // URL ?d= 파라미터 감지 → 폼 건너뛰고 결과 바로 표시 (공유 링크 수신자)
   useEffect(() => {
@@ -184,12 +215,29 @@ export default function SajuDogApp() {
   useEffect(()=>{if(step==="result"&&resultRef.current)resultRef.current.scrollIntoView({behavior:"smooth"});},[step]);
 
   const canSubmit=name&&breed&&gender&&birthYear&&birthMonth&&birthDay;
+  const canSubmitPremium = canSubmit && ownerName && ownerBY && ownerBM && ownerBD;
   const handleSubmit=()=>{if(canSubmit){setLI(0);setStep("loading");}};
-  const reset=()=>{setStep("intro");setName("");setBreed("");setGender("");setBY("");setBM("");setBD("");setBH("12");setKT(true);setResult(null);setTab("saju");setOP(false);setOR(null);setAdStep("idle");setAdCountdown(3);};
+  const handleSubmitPremium = () => {
+    if (!canSubmitPremium) return;
+    setLI(0);
+    setAdCountdown(5);
+    setStep("premiumLoading");
+  };
+  const startPremium = () => {
+    // Intro → 프리미엄 플로우 진입. 과거 입력값을 초기화해 깔끔한 폼으로 시작.
+    setPremiumMode(true);
+    setName("");setBreed("");setGender("");setBY("");setBM("");setBD("");setBH("12");setKT(true);
+    setON("");setOBY("");setOBM("");setOBD("");setOBH("12");setOKT(true);
+    setOP(false);setOR(null);setAdStep("idle");setAdCountdown(5);
+    setStep("premiumForm");
+  };
+  const reset=()=>{setStep("intro");setName("");setBreed("");setGender("");setBY("");setBM("");setBD("");setBH("12");setKT(true);setResult(null);setTab("saju");setOP(false);setOR(null);setAdStep("idle");setAdCountdown(3);setPremiumMode(false);setON("");setOBY("");setOBM("");setOBD("");setOBH("12");setOKT(true);};
   const goBack=()=>{
     if(step==="form")setStep("intro");
+    else if(step==="premiumForm")setStep("intro");
     else if(step==="loading")setStep("form");
-    else if(step==="result")setStep("form");
+    else if(step==="premiumLoading")setStep("premiumForm");
+    else if(step==="result")setStep(premiumMode?"premiumForm":"form");
   };
   const goCompat=()=>{setTab("compat");if(resultRef.current)resultRef.current.scrollIntoView({behavior:"smooth"});};
 
@@ -218,7 +266,7 @@ export default function SajuDogApp() {
   },[adStep,adCountdown]);
 
   const years=Array.from({length:100},(_,i)=>2026-i);
-  const dogYears=Array.from({length:30},(_,i)=>2026-i);
+  const dogYears=Array.from({length:40},(_,i)=>2026-i);
   const months=Array.from({length:12},(_,i)=>i+1);
   const days=Array.from({length:31},(_,i)=>i+1);
   const hours=Array.from({length:24},(_,i)=>i);
@@ -318,15 +366,15 @@ export default function SajuDogApp() {
               ))}
             </div>
 
-            <button onClick={()=>setStep("form")} className="pop-btn" style={{
+            <button onClick={()=>{setPremiumMode(false);setStep("form");}} className="pop-btn" style={{
               background:C.pink,color:"#fff",border:`4px solid ${C.cardBorder}`,
               borderRadius:50,padding:"18px 56px",fontSize:18,fontWeight:900,
               cursor:"pointer",boxShadow:C.shadowLarge,
             }}>🔮 무료 사주 감정</button>
 
-            <button onClick={()=>setStep("form")} className="pop-btn" style={{display:"block",width:"100%",marginTop:24,padding:"14px 20px",borderRadius:18,background:C.yellow,border:`3px solid ${C.cardBorder}`,boxShadow:C.shadow,cursor:"pointer",fontFamily:FONT,textAlign:"left"}}>
-              <div style={{fontSize:13,color:C.text,fontWeight:900,marginBottom:4}}>💕 PREMIUM — 주인+강아지 궁합</div>
-              <div style={{fontSize:12,color:C.textMid,fontWeight:700}}>사주팔자로 보는 둘의 궁합 · <span style={{color:C.pinkDark,fontWeight:900}}>🎁 무료</span></div>
+            <button onClick={startPremium} className="pop-btn" style={{display:"block",width:"100%",marginTop:24,padding:"14px 20px",borderRadius:18,background:C.yellow,border:`3px solid ${C.cardBorder}`,boxShadow:C.shadow,cursor:"pointer",fontFamily:FONT,textAlign:"left"}}>
+              <div style={{fontSize:13,color:C.text,fontWeight:900,marginBottom:4}}>💕 PREMIUM — 반려견 + 반려인 종합</div>
+              <div style={{fontSize:12,color:C.textMid,fontWeight:700}}>한 번에 사주 + 둘의 궁합까지 · <span style={{color:C.pinkDark,fontWeight:900}}>🎁 광고 보고 무료</span></div>
             </button>
 
             <div style={{marginTop:20,padding:"16px 20px",borderRadius:18,background:"#fff",border:`3px solid ${C.cardBorder}`,boxShadow:C.shadow,fontSize:12,color:C.textMid,lineHeight:1.9,textAlign:"left",fontWeight:700}}>
@@ -383,6 +431,98 @@ export default function SajuDogApp() {
           </div>
         )}
 
+        {/* ═══ PREMIUM FORM — 반려견 + 반려인 통합 ═══ */}
+        {step==="premiumForm"&&(
+          <div style={{animation:"fadeIn 0.5s ease-out"}}>
+            <div style={{textAlign:"center",marginBottom:18}}>
+              <div style={{display:"inline-block",padding:"6px 14px",borderRadius:50,background:C.pink,color:"#fff",fontSize:11,fontWeight:900,letterSpacing:1,border:`3px solid ${C.cardBorder}`,boxShadow:"3px 3px 0 #1a0033",marginBottom:12}}>💕 PREMIUM 종합 감정</div>
+              <h2 style={{fontSize:24,fontWeight:900,color:C.text,marginBottom:6}}>반려견 + 반려인 정보</h2>
+              <p style={{fontSize:12,color:C.textMid,lineHeight:1.7,fontWeight:700}}>둘의 사주를 한 번에 분석합니다.<br/>결과에 <strong style={{color:C.pinkDark}}>궁합 점수·상생상극·음양조화</strong>까지 포함돼요.</p>
+            </div>
+
+            {/* 반려견 섹션 */}
+            <div style={{background:"#fff",border:`3px solid ${C.cardBorder}`,borderRadius:18,padding:"18px 18px 14px",marginBottom:16,boxShadow:C.shadow}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14,paddingBottom:10,borderBottom:`2px dashed ${C.cardBorder}`}}>
+                <span style={{fontSize:22}}>🐕</span>
+                <span style={{fontSize:15,fontWeight:900,color:C.text}}>반려견 정보</span>
+              </div>
+              <div style={{marginBottom:14}}>
+                <label style={lbl}>이름</label>
+                <input type="text" value={name} onChange={e=>setName(e.target.value)} placeholder="강아지 이름" style={inp} maxLength={20}/>
+              </div>
+              <div style={{marginBottom:14}}>
+                <label style={lbl}>견종</label>
+                <select value={breed} onChange={e=>setBreed(e.target.value)} style={inp}>
+                  <option value="">견종 선택</option>
+                  {견종목록.map(b=><option key={b} value={b}>{b} (평균 {견종데이터[b].수명}세)</option>)}
+                </select>
+              </div>
+              <div style={{marginBottom:14}}>
+                <label style={lbl}>성별</label>
+                <div style={{display:"flex",gap:10}}>
+                  {["수컷 ♂","암컷 ♀"].map(g=>(
+                    <button key={g} onClick={()=>setGender(g)} style={{flex:1,padding:"13px 0",borderRadius:50,fontSize:13,fontWeight:900,fontFamily:FONT,cursor:"pointer",border:`3px solid ${C.cardBorder}`,background:gender===g?C.cyan:"#fff",color:C.text,boxShadow:gender===g?C.shadow:"none",transition:"all 0.15s"}}>{g}</button>
+                  ))}
+                </div>
+              </div>
+              <div style={{marginBottom:14}}>
+                <label style={lbl}>생년월일</label>
+                <div style={{display:"flex",gap:6}}>
+                  <select value={birthYear} onChange={e=>setBY(e.target.value)} style={{...inp,flex:1.2}}><option value="">년</option>{dogYears.map(y=><option key={y} value={y}>{y}년</option>)}</select>
+                  <select value={birthMonth} onChange={e=>setBM(e.target.value)} style={{...inp,flex:1}}><option value="">월</option>{months.map(m=><option key={m} value={m}>{m}월</option>)}</select>
+                  <select value={birthDay} onChange={e=>setBD(e.target.value)} style={{...inp,flex:1}}><option value="">일</option>{days.map(d=><option key={d} value={d}>{d}일</option>)}</select>
+                </div>
+              </div>
+              <div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                  <label style={{...lbl,marginBottom:0}}>태어난 시간</label>
+                  <button onClick={()=>setKT(!knowTime)} style={{background:"none",border:"none",color:C.pinkDark,fontSize:11,cursor:"pointer",fontFamily:FONT,fontWeight:900,textDecoration:"underline"}}>{knowTime?"모르겠어요":"알아요"}</button>
+                </div>
+                {knowTime?(<select value={birthHour} onChange={e=>setBH(e.target.value)} style={inp}>{hours.map(h=><option key={h} value={h}>{String(h).padStart(2,"0")}시 ({시지명[h]}시)</option>)}</select>):(<p style={{fontSize:11,color:C.textLight,padding:"6px 0",fontWeight:700}}>※ 시간 미상 시 午시(정오)로 계산</p>)}
+              </div>
+            </div>
+
+            {/* 반려인 섹션 */}
+            <div style={{background:"#fff",border:`3px solid ${C.cardBorder}`,borderRadius:18,padding:"18px 18px 14px",marginBottom:18,boxShadow:C.shadow}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14,paddingBottom:10,borderBottom:`2px dashed ${C.cardBorder}`}}>
+                <span style={{fontSize:22}}>💕</span>
+                <span style={{fontSize:15,fontWeight:900,color:C.text}}>반려인(주인) 정보</span>
+                <span style={{marginLeft:"auto",fontSize:10,fontWeight:900,color:"#fff",background:C.pinkDark,padding:"3px 10px",borderRadius:50,border:`2px solid ${C.cardBorder}`}}>양력</span>
+              </div>
+              <div style={{marginBottom:14}}>
+                <label style={lbl}>이름</label>
+                <input type="text" value={ownerName} onChange={e=>setON(e.target.value)} placeholder="반려인 이름" style={inp} maxLength={20}/>
+              </div>
+              <div style={{marginBottom:14}}>
+                <label style={lbl}>생년월일 <span style={{color:C.pinkDark,fontSize:11}}>(양력 기준)</span></label>
+                <div style={{display:"flex",gap:5}}>
+                  <select value={ownerBY} onChange={e=>setOBY(e.target.value)} style={{...inp,flex:1.2}}><option value="">년</option>{years.map(y=><option key={y} value={y}>{y}</option>)}</select>
+                  <select value={ownerBM} onChange={e=>setOBM(e.target.value)} style={{...inp,flex:1}}><option value="">월</option>{months.map(m=><option key={m} value={m}>{m}</option>)}</select>
+                  <select value={ownerBD} onChange={e=>setOBD(e.target.value)} style={{...inp,flex:1}}><option value="">일</option>{days.map(d=><option key={d} value={d}>{d}</option>)}</select>
+                </div>
+              </div>
+              <div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                  <label style={{...lbl,marginBottom:0}}>태어난 시간</label>
+                  <button onClick={()=>setOKT(!ownerKT)} style={{background:"none",border:"none",color:C.pinkDark,fontSize:11,cursor:"pointer",fontFamily:FONT,fontWeight:900,textDecoration:"underline"}}>{ownerKT?"몰라요":"알아요"}</button>
+                </div>
+                {ownerKT?(<select value={ownerBH} onChange={e=>setOBH(e.target.value)} style={inp}>{hours.map(h=><option key={h} value={h}>{String(h).padStart(2,"0")}시 ({시지명[h]}시)</option>)}</select>):(<p style={{fontSize:11,color:C.textLight,padding:"6px 0",fontWeight:700}}>※ 시간 미상 시 午시(정오)로 계산</p>)}
+              </div>
+            </div>
+
+            <button onClick={handleSubmitPremium} disabled={!canSubmitPremium} className="pop-btn" style={{
+              width:"100%",
+              background:canSubmitPremium?C.pink:"#e8e0ed",
+              color:canSubmitPremium?"#fff":"#aaa",
+              border:`4px solid ${canSubmitPremium?C.cardBorder:"#ccc"}`,
+              borderRadius:50,padding:"18px",fontSize:16,fontWeight:900,fontFamily:FONT,
+              cursor:canSubmitPremium?"pointer":"not-allowed",
+              boxShadow:canSubmitPremium?C.shadowLarge:"none",
+            }}>🎁 광고 보고 프리미엄 결과 보기</button>
+            <p style={{textAlign:"center",fontSize:10,color:C.textLight,marginTop:8,fontWeight:700}}>※ 광고 5초 시청 후 결과 + 궁합을 바로 확인합니다</p>
+          </div>
+        )}
+
         {/* ═══ LOADING ═══ */}
         {step==="loading"&&(
           <div style={{textAlign:"center",paddingTop:40,animation:"fadeIn 0.4s ease-out"}}>
@@ -393,6 +533,30 @@ export default function SajuDogApp() {
             </div>
             <AdBanner type="loading"/>
             <p style={{fontSize:11,color:C.textLight,marginTop:8,fontWeight:700}}>잠시만 기다려주세요...</p>
+          </div>
+        )}
+
+        {/* ═══ PREMIUM LOADING — 로딩 + 광고 카운트다운 동시 ═══ */}
+        {step==="premiumLoading"&&(
+          <div style={{paddingTop:20,animation:"fadeIn 0.4s ease-out"}}>
+            <div style={{textAlign:"center",marginBottom:20}}>
+              <div style={{fontSize:56,animation:"spin 4s linear infinite",marginBottom:14,color:C.pink}}>☯</div>
+              <div style={{display:"inline-block",padding:"4px 12px",borderRadius:50,background:C.pink,color:"#fff",fontSize:10,fontWeight:900,letterSpacing:1,border:`2px solid ${C.cardBorder}`,marginBottom:10}}>💕 PREMIUM 감정 중</div>
+              <p style={{fontSize:15,color:C.text,minHeight:24,fontWeight:900}}>{loadMsgs[loadIdx]}</p>
+            </div>
+            <div style={{background:C.text,borderRadius:18,padding:"24px 18px",textAlign:"center",border:`4px solid ${C.cardBorder}`,boxShadow:C.shadowLarge,color:"#fff"}}>
+              <div style={{fontSize:10,color:C.yellow,marginBottom:8,fontWeight:900,letterSpacing:2}}>ADVERTISEMENT</div>
+              <AdBanner type="result"/>
+              <div style={{marginTop:14,fontSize:54,fontWeight:900,color:C.yellow,lineHeight:1}}>
+                {adCountdown > 0 ? adCountdown : "🎉"}
+              </div>
+              <div style={{fontSize:12,color:"#fff",marginTop:8,fontWeight:700,opacity:0.8}}>
+                {adCountdown > 0 ? `${adCountdown}초 후 결과 확인` : "결과 준비 완료!"}
+              </div>
+            </div>
+            <p style={{textAlign:"center",fontSize:10,color:C.textLight,marginTop:12,fontWeight:700}}>
+              반려견 사주 + 반려인 궁합을 동시에 계산하고 있어요
+            </p>
           </div>
         )}
 
@@ -658,13 +822,16 @@ export default function SajuDogApp() {
                       </div>
                     ) : (
                       <div className="anim" style={{...card,marginTop:12}}>
-                        <h4 style={{fontSize:15,fontWeight:900,color:C.text,marginBottom:14}}>반려인 정보 입력</h4>
+                        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
+                          <h4 style={{fontSize:15,fontWeight:900,color:C.text}}>반려인 정보 입력</h4>
+                          <span style={{marginLeft:"auto",fontSize:10,fontWeight:900,color:"#fff",background:C.pinkDark,padding:"3px 10px",borderRadius:50,border:`2px solid ${C.cardBorder}`}}>양력</span>
+                        </div>
                         <div style={{marginBottom:14}}>
                           <label style={lbl}>반려인 이름</label>
                           <input type="text" value={ownerName} onChange={e=>setON(e.target.value)} placeholder="이름 입력" style={inp} maxLength={20}/>
                         </div>
                         <div style={{marginBottom:14}}>
-                          <label style={lbl}>생년월일</label>
+                          <label style={lbl}>생년월일 <span style={{color:C.pinkDark,fontSize:11}}>(양력 기준)</span></label>
                           <div style={{display:"flex",gap:5}}>
                             <select value={ownerBY} onChange={e=>setOBY(e.target.value)} style={{...inp,flex:1.2}}><option value="">년</option>{years.map(y=><option key={y} value={y}>{y}</option>)}</select>
                             <select value={ownerBM} onChange={e=>setOBM(e.target.value)} style={{...inp,flex:1}}><option value="">월</option>{months.map(m=><option key={m} value={m}>{m}</option>)}</select>
