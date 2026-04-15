@@ -6,6 +6,9 @@ import { generateFortune } from "../../../lib/fortune";
 
 export const runtime = "edge";
 
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://gaepalja-nextjs.vercel.app";
+
 // Google Fonts CSS2 API에서 TTF/OTF 폰트 데이터 추출
 // 구형 Android UA를 보내면 woff2/woff 대신 truetype URL을 돌려줌 — satori가 요구하는 포맷
 async function loadGoogleFont(family: string, weight: number, text: string) {
@@ -31,7 +34,9 @@ export async function GET(req: Request) {
     const decoded = d ? decodeShareData(d) : null;
 
     if (!decoded) {
-      // fallback — 파라미터 없을 때는 기본 브랜드 이미지
+      // fallback — 파라미터 없을 때는 로고 중심의 기본 브랜드 카드
+      const fallbackText = "개팔자우리강아지사주풀이천간지지오행";
+      const fallbackBold = await loadGoogleFont("Noto+Sans+KR", 900, fallbackText);
       return new ImageResponse(
         (
           <div
@@ -43,15 +48,96 @@ export async function GET(req: Request) {
               justifyContent: "center",
               background:
                 "linear-gradient(180deg,#ffe6f0 0%,#ffe9c2 35%,#c2f0ff 100%)",
-              fontSize: 120,
-              fontWeight: 900,
-              color: "#1a0033",
+              padding: "60px 80px",
+              fontFamily: "NotoKR",
             }}
           >
-            🐾 개팔자
+            {/* 좌: 로고 */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <img
+                src={`${SITE_URL}/logo.png`}
+                width={420}
+                height={420}
+                alt="개팔자"
+                style={{
+                  borderRadius: 36,
+                  border: "8px solid #1a0033",
+                  boxShadow: "12px 12px 0 #1a0033",
+                }}
+              />
+            </div>
+            {/* 우: 브랜드 텍스트 */}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                marginLeft: 60,
+                flex: 1,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  fontSize: 96,
+                  fontWeight: 900,
+                  color: "#1a0033",
+                  lineHeight: 1.1,
+                  letterSpacing: -2,
+                }}
+              >
+                🐾 개팔자
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  fontSize: 32,
+                  fontWeight: 900,
+                  color: "#ff3e9d",
+                  marginTop: 16,
+                }}
+              >
+                우리 강아지 사주풀이
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  fontSize: 22,
+                  fontWeight: 900,
+                  color: "#4b3b6b",
+                  marginTop: 12,
+                  lineHeight: 1.5,
+                }}
+              >
+                천간지지 · 음양오행으로 풀어보는
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  fontSize: 22,
+                  fontWeight: 900,
+                  color: "#4b3b6b",
+                  lineHeight: 1.5,
+                }}
+              >
+                반려견 사주팔자 · 토정비결
+              </div>
+            </div>
           </div>
         ),
-        { width: 1200, height: 630 }
+        {
+          width: 1200,
+          height: 630,
+          fonts: [
+            { name: "NotoKR", data: fallbackBold, weight: 900, style: "normal" },
+          ],
+        }
       );
     }
 
