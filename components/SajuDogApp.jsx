@@ -384,6 +384,9 @@ export default function SajuDogApp() {
               ✦ 성격 · 건강 · 반려인 궁합<br/>
               ✦ 오행 맞춤 펫용품 추천
             </div>
+
+            {/* 인트로 광고 — AdFit 크롤러가 첫 화면에서 바로 볼 수 있도록 */}
+            <AdBanner type="bottom"/>
           </div>
         )}
 

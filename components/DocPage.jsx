@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AdBanner from "./AdBanner";
 
 // 약관·개인정보·회사소개 같은 텍스트 페이지용 공통 쉘
 // 90s 팝 톤을 유지하면서도 가독성을 위해 글자는 크고 여백은 여유롭게
@@ -102,6 +103,9 @@ export default function DocPage({ title, subtitle, children }) {
         }}>
           {children}
         </div>
+
+        {/* 하단 광고 — 정적 페이지에도 AdFit 크롤러가 볼 수 있도록 */}
+        <AdBanner type="bottom" />
       </div>
     </div>
   );
