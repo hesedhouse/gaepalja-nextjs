@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import Script from "next/script";
 import Footer from "../components/Footer";
 
 export const metadata: Metadata = {
@@ -49,14 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       }}>
         {children}
         <Footer />
-        {/* 카카오 애드핏 SDK — 광고단위 ID가 설정된 경우에만 로드 */}
-        {process.env.NEXT_PUBLIC_ADFIT_LOADING_UNIT && (
-          <Script
-            src="https://t1.daumcdn.net/kas/static/ba.min.js"
-            strategy="afterInteractive"
-            async
-          />
-        )}
+        {/* 카카오 애드핏 SDK는 각 AdBanner가 마운트 시점에 직접 주입 — SPA 동적 스캔 대응 */}
       </body>
     </html>
   );
