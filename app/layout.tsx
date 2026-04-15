@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     description: "우리 강아지의 타고난 기질과 운명을 풀어드립니다",
     type: "website",
     locale: "ko_KR",
-    images: [{ url: "/api/og", width: 1200, height: 630, alt: "개팔자" }],
+    images: [{ url: "/logo.png", width: 1024, height: 1024, alt: "개팔자" }],
   },
 };
 
