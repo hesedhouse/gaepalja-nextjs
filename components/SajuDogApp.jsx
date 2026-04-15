@@ -863,6 +863,7 @@ export default function SajuDogApp() {
                   </div>
                 ) : ownerResult && (
                   <div>
+                    {/* ── 1. 점수 & 등급 카드 ── */}
                     <div className="anim" style={{...card,textAlign:"center",background:C.yellow}}>
                       <div style={{fontSize:13,color:C.text,marginBottom:8,fontWeight:900}}>{ownerResult.name} ✕ {result.name}</div>
                       <div style={{animation:"scoreCount 0.8s ease-out"}}>
@@ -887,8 +888,47 @@ export default function SajuDogApp() {
                       </div>
                     </div>
 
+                    {/* ── 2. 인연 스토리 (2문단 내러티브) ── */}
+                    <div className="anim anim-d1" style={{...card,background:"#fef3f7",borderColor:C.pink}}>
+                      <h3 style={{...secT,color:C.pinkDark}}>📖 둘의 인연 이야기</h3>
+                      <p style={{fontSize:13,color:C.textMid,lineHeight:2.0,fontWeight:700,whiteSpace:"pre-line"}}>{ownerResult.compat.인연스토리}</p>
+                    </div>
+
+                    {/* ── 3. 점수 세부 breakdown ── */}
+                    <div className="anim anim-d2" style={card}>
+                      <h3 style={secT}>📊 점수 세부 분석</h3>
+                      <p style={{fontSize:11,color:C.textLight,lineHeight:1.6,fontWeight:700,marginBottom:14}}>
+                        궁합 점수는 다섯 가지 요소를 합쳐 계산됩니다. 각 요소가 어떻게 점수에 기여했는지 확인해보세요.
+                      </p>
+                      {ownerResult.compat.breakdown.map((b,i)=>{
+                        const pct = Math.max(0, Math.min(100, (b.score / b.max) * 100));
+                        const displayScore = b.score >= 0 ? `+${b.score}` : `${b.score}`;
+                        return (
+                          <div key={i} style={{marginBottom:12}}>
+                            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                              <span style={{fontSize:12,fontWeight:900,color:C.text}}>{b.label}</span>
+                              <span style={{fontSize:11,fontWeight:900,color:b.score < 0 ? C.red : b.color}}>
+                                {displayScore} <span style={{color:C.textLight,fontWeight:700}}>/ {b.max}</span>
+                              </span>
+                            </div>
+                            <div style={{height:14,background:"#fff",borderRadius:50,overflow:"hidden",border:`2px solid ${C.cardBorder}`,position:"relative"}}>
+                              <div style={{width:`${pct}%`,height:"100%",background:b.color,borderRadius:50,transition:"width 0.6s ease"}}/>
+                            </div>
+                            <p style={{fontSize:10,color:C.textLight,marginTop:4,fontWeight:700}}>{b.desc}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* ── 4. 관계 분석 (기존 details) ── */}
+                    <div className="anim anim-d3" style={{...card,background:C.cyan}}>
+                      <h3 style={secT}>🔍 관계 심층 분석</h3>
+                      <p style={{fontSize:11,color:C.text,lineHeight:1.6,fontWeight:700}}>
+                        사주학의 네 가지 관점에서 본 {ownerResult.name}과 {result.name}의 관계
+                      </p>
+                    </div>
                     {ownerResult.compat.details.map((d,i)=>(
-                      <div key={i} className="anim" style={{...card,animationDelay:`${(i+1)*0.1}s`}}>
+                      <div key={i} className="anim" style={{...card,animationDelay:`${(i+1)*0.08}s`}}>
                         <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
                           <span style={{fontSize:24}}>{d.icon}</span>
                           <div>
@@ -899,9 +939,89 @@ export default function SajuDogApp() {
                       </div>
                     ))}
 
-                    <div className="anim anim-d5" style={{...card,background:C.green}}>
-                      <h3 style={secT}>💡 궁합 향상 조언</h3>
-                      {ownerResult.compat.tips.map((t,i)=><p key={i} style={{fontSize:13,color:C.text,lineHeight:1.8,marginBottom:6,fontWeight:700}}>• {t}</p>)}
+                    {/* ── 5. 반려인 타입 ── */}
+                    {ownerResult.compat.반려인 && (
+                      <div className="anim" style={{...card,background:`${오행색[ownerResult.compat.ownerEl]}15`,borderColor:오행색[ownerResult.compat.ownerEl]}}>
+                        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+                          <div style={{width:48,height:48,borderRadius:"50%",background:`${오행색[ownerResult.compat.ownerEl]}33`,border:`3px solid ${C.cardBorder}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,boxShadow:"2px 2px 0 #1a0033",flexShrink:0}}>{오행이모지[ownerResult.compat.ownerEl]}</div>
+                          <div>
+                            <div style={{fontSize:10,fontWeight:900,color:C.textLight,letterSpacing:1,marginBottom:2}}>반려인 타입</div>
+                            <div style={{fontSize:16,fontWeight:900,color:오행색[ownerResult.compat.ownerEl]}}>{ownerResult.compat.반려인.title}</div>
+                          </div>
+                        </div>
+                        <div style={{padding:"8px 12px",borderRadius:10,background:"#fff",border:`2px solid ${C.cardBorder}`,marginBottom:12}}>
+                          <div style={{fontSize:11,fontWeight:900,color:C.text,marginBottom:2}}>스타일</div>
+                          <div style={{fontSize:12,color:C.textMid,fontWeight:700}}>{ownerResult.compat.반려인.style}</div>
+                          <div style={{fontSize:10,color:오행색[ownerResult.compat.ownerEl],fontWeight:900,marginTop:4}}># {ownerResult.compat.반려인.keyword}</div>
+                        </div>
+                        <div style={{padding:"10px 12px",borderRadius:10,background:"#e8f8ee",border:`2px solid ${C.cardBorder}`,marginBottom:8}}>
+                          <div style={{fontSize:11,fontWeight:900,color:C.green,marginBottom:4}}>✨ 강점</div>
+                          <p style={{fontSize:12,color:C.textMid,lineHeight:1.7,fontWeight:700}}>{ownerResult.compat.반려인.강점}</p>
+                        </div>
+                        <div style={{padding:"10px 12px",borderRadius:10,background:"#fff0f0",border:`2px solid ${C.cardBorder}`}}>
+                          <div style={{fontSize:11,fontWeight:900,color:C.pinkDark,marginBottom:4}}>💭 유의할 점</div>
+                          <p style={{fontSize:12,color:C.textMid,lineHeight:1.7,fontWeight:700}}>{ownerResult.compat.반려인.약점}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── 6. 일상 시나리오 4개 ── */}
+                    <div className="anim" style={{...card,background:C.yellow}}>
+                      <h3 style={secT}>🎬 일상 속 둘의 모습</h3>
+                      <p style={{fontSize:11,color:C.textMid,lineHeight:1.6,fontWeight:700}}>
+                        사주로 본 네 가지 일상 순간에서의 {result.name}과 당신의 케미
+                      </p>
+                    </div>
+                    {ownerResult.compat.시나리오.map((s,i)=>(
+                      <div key={i} className="anim" style={{...card,animationDelay:`${i*0.06}s`}}>
+                        <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
+                          <span style={{fontSize:28,lineHeight:1}}>{s.icon}</span>
+                          <div>
+                            <div style={{fontSize:14,fontWeight:900,color:C.text,marginBottom:6}}>{s.title}</div>
+                            <p style={{fontSize:12,color:C.textMid,lineHeight:1.8,fontWeight:700}}>{s.desc}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* ── 7. 함께하면 좋은 활동 TOP 3 ── */}
+                    <div className="anim" style={{...card,background:C.green}}>
+                      <h3 style={secT}>🏆 함께하면 좋은 활동 TOP 3</h3>
+                      <p style={{fontSize:11,color:C.text,lineHeight:1.6,fontWeight:700}}>
+                        {오행명[ownerResult.compat.dogEl]}({ownerResult.compat.dogEl}) 기운의 {result.name}에게 최적화된 교감 활동
+                      </p>
+                    </div>
+                    {ownerResult.compat.추천활동.map((a,i)=>(
+                      <div key={i} className="anim" style={{...card,animationDelay:`${i*0.08}s`}}>
+                        <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
+                          <div style={{minWidth:34,textAlign:"center"}}>
+                            <div style={{fontSize:26,lineHeight:1}}>{a.icon}</div>
+                            <div style={{fontSize:10,fontWeight:900,color:C.pinkDark,marginTop:2}}>#{i+1}</div>
+                          </div>
+                          <div>
+                            <div style={{fontSize:14,fontWeight:900,color:C.text,marginBottom:4}}>{a.title}</div>
+                            <p style={{fontSize:12,color:C.textMid,lineHeight:1.7,fontWeight:700}}>{a.desc}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* ── 8. 이번 달 교감 포인트 ── */}
+                    <div className="anim" style={{...card,background:C.pink,color:"#fff"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                        <span style={{fontSize:22}}>📅</span>
+                        <div>
+                          <div style={{fontSize:10,fontWeight:900,color:"#fff",letterSpacing:1,opacity:0.8}}>THIS MONTH</div>
+                          <div style={{fontSize:16,fontWeight:900,color:"#fff"}}>{ownerResult.compat.지금월}월의 교감 포인트</div>
+                        </div>
+                      </div>
+                      <p style={{fontSize:13,color:"#fff",lineHeight:1.9,fontWeight:700}}>{ownerResult.compat.이번달팁}</p>
+                    </div>
+
+                    {/* ── 9. 궁합 향상 조언 (기존) ── */}
+                    <div className="anim" style={{...card,background:"#e8f8ee"}}>
+                      <h3 style={secT}>💡 유대감 레벨업 팁</h3>
+                      {ownerResult.compat.tips.map((t,i)=><p key={i} style={{fontSize:13,color:C.text,lineHeight:1.9,marginBottom:8,fontWeight:700}}>✓ {t}</p>)}
                     </div>
                   </div>
                 )}
