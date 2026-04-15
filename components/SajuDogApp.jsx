@@ -8,7 +8,25 @@ import {
 } from "../lib/saju";
 import { generateFortune, calcOwnerCompat, getCoupangRecs } from "../lib/fortune";
 import coupangCache from "../public/coupang-recs.json";
+import { encodeShareData, decodeShareData } from "../lib/shareCodec";
 import AdBanner from "./AdBanner";
+
+// 사주 결과 계산 — loading 단계와 URL 디코드 진입 양쪽에서 재사용
+function buildResult({ name, breed, gender, birthYear, birthMonth, birthDay, birthHour, knowTime }) {
+  const hr = knowTime ? parseInt(birthHour) : 12;
+  const saju = calcSaju(parseInt(birthYear), parseInt(birthMonth), parseInt(birthDay), hr);
+  const 일간 = saju.day.간, el = get오행of(일간);
+  const els = [get오행of(saju.year.간), get오행of(saju.month.간), get오행of(saju.day.간), get오행of(saju.hour.간)];
+  const counts = {}; els.forEach(e => counts[e] = (counts[e] || 0) + 1);
+  const missing = ["木","火","土","金","水"].filter(e => !counts[e]);
+  const 신살 = get신살(saju), 합충 = calc합충(saju);
+  const dw = calc대운(saju, parseInt(birthYear), breed);
+  const 세운 = calc세운(saju, 2026), 월운 = calc월운(saju, 2026);
+  const fortune = generateFortune(name, saju, breed);
+  const coupang = getCoupangRecs(coupangCache, el, missing, breed);
+  const currentDogAge = 2026 - parseInt(birthYear);
+  return { saju, 일간, el, counts, missing, 신살, 합충, 대운: dw.대운목록, 대운주기: dw.주기, 평균수명: dw.수명, 체급: dw.체급, currentDogAge, 세운, 월운, fortune, coupang, name, breed, gender };
+}
 
 // ─── DESIGN TOKENS (90s POP) ────────────────────────────────
 const C = {
@@ -129,19 +147,8 @@ export default function SajuDogApp() {
         setLI(p=>{
           if(p>=loadMsgs.length-1){
             clearInterval(iv);
-            const hr=knowTime?parseInt(birthHour):12;
-            const saju=calcSaju(parseInt(birthYear),parseInt(birthMonth),parseInt(birthDay),hr);
-            const 일간=saju.day.간,el=get오행of(일간);
-            const els=[get오행of(saju.year.간),get오행of(saju.month.간),get오행of(saju.day.간),get오행of(saju.hour.간)];
-            const counts={};els.forEach(e=>counts[e]=(counts[e]||0)+1);
-            const missing=["木","火","土","金","水"].filter(e=>!counts[e]);
-            const 신살=get신살(saju),합충=calc합충(saju);
-            const dw=calc대운(saju,parseInt(birthYear),breed);
-            const 세운=calc세운(saju,2026),월운=calc월운(saju,2026);
-            const fortune=generateFortune(name,saju,breed);
-            const coupang=getCoupangRecs(coupangCache,el,missing,breed);
-            const currentDogAge=2026-parseInt(birthYear);
-            setResult({saju,일간,el,counts,missing,신살,합충,대운:dw.대운목록,대운주기:dw.주기,평균수명:dw.수명,체급:dw.체급,currentDogAge,세운,월운,fortune,coupang,name,breed,gender});
+            const r = buildResult({name, breed, gender, birthYear, birthMonth, birthDay, birthHour, knowTime});
+            setResult(r);
             setStep("result");
             return p;
           }
@@ -151,6 +158,31 @@ export default function SajuDogApp() {
       return()=>clearInterval(iv);
     }
   },[step]);
+
+  // URL ?d= 파라미터 감지 → 폼 건너뛰고 결과 바로 표시 (공유 링크 수신자)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const d = params.get("d");
+    if (!d) return;
+    const decoded = decodeShareData(d);
+    if (!decoded) return;
+    setName(decoded.name);
+    setBreed(decoded.breed);
+    setGender(decoded.gender);
+    setBY(decoded.birthYear);
+    setBM(decoded.birthMonth);
+    setBD(decoded.birthDay);
+    setBH(decoded.birthHour);
+    setKT(decoded.knowTime);
+    try {
+      const r = buildResult(decoded);
+      setResult(r);
+      setStep("result");
+    } catch (e) {
+      console.error("shared link decode failed:", e);
+    }
+  }, []);
 
   useEffect(()=>{if(step==="result"&&resultRef.current)resultRef.current.scrollIntoView({behavior:"smooth"});},[step]);
 
@@ -195,44 +227,49 @@ export default function SajuDogApp() {
   const hours=Array.from({length:24},(_,i)=>i);
   const 시지명=["子","丑","丑","寅","寅","卯","卯","辰","辰","巳","巳","午","午","未","未","申","申","酉","酉","戌","戌","亥","亥","子"];
 
+  // 현재 결과를 재현할 수 있는 영구 URL — 받는 사람이 이 링크를 열면 같은 결과가 뜸
+  const buildShareUrl = () => {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://gaepalja-nextjs.vercel.app";
+    if (!result) return siteUrl;
+    const d = encodeShareData({ name, breed, gender, birthYear, birthMonth, birthDay, birthHour, knowTime });
+    return `${siteUrl}/?d=${d}`;
+  };
+
   const getShareText = () => {
     if(!result) return "";
     const el=result.el;
-    return `🐾 개팔자 감정 결과\n\n🐕 ${result.name} (${result.breed})\n${오행이모지[el]} ${오행명[el]}(${el}) 기운의 "${result.fortune.성격.title}"\n\n📜 2026년 총운: ${result.fortune.총운[0]}\n${result.fortune.총운[2].slice(0,60)}...\n\n🔮 우리 강아지 사주 보러가기 👇\n${process.env.NEXT_PUBLIC_SITE_URL || "https://gaepalja-nextjs.vercel.app"}`;
+    return `🐾 ${result.name}의 개팔자\n${오행이모지[el]} ${오행명[el]}(${el}) 기운의 "${result.fortune.성격.title}"\n📜 ${result.fortune.총운[0]}\n\n${buildShareUrl()}`;
   };
 
-  // 카카오톡 공유하기 — Kakao SDK가 로드되어 있으면 sendDefault 호출, 아니면 텍스트 복사 fallback
-  const handleKakaoShare = () => {
+  // 공유하기 — Web Share API (모바일 네이티브 공유창) → 실패/미지원 시 URL 클립보드 복사
+  const handleShare = async () => {
     if(!result) return;
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://gaepalja-nextjs.vercel.app";
+    const url = buildShareUrl();
     const el = result.el;
-    const title = `🐾 ${result.name}의 개팔자 결과`;
-    const description = `${오행이모지[el]} ${오행명[el]}(${el}) 기운의 "${result.fortune.성격.title}"\n${result.fortune.총운[0]}`;
+    const shareData = {
+      title: `🐾 ${result.name}의 개팔자`,
+      text: `${오행이모지[el]} ${오행명[el]}(${el}) 기운 · "${result.fortune.성격.title}"`,
+      url,
+    };
 
-    if (typeof window !== "undefined" && window.Kakao && window.Kakao.isInitialized && window.Kakao.isInitialized()) {
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
       try {
-        window.Kakao.Share.sendDefault({
-          objectType: "feed",
-          content: {
-            title,
-            description,
-            imageUrl: `${siteUrl}/logo.png`,
-            link: { mobileWebUrl: siteUrl, webUrl: siteUrl },
-          },
-          buttons: [
-            {
-              title: "🔮 나도 우리 강아지 사주 보기",
-              link: { mobileWebUrl: siteUrl, webUrl: siteUrl },
-            },
-          ],
-        });
+        await navigator.share(shareData);
         return;
       } catch (e) {
-        console.warn("Kakao Share failed, falling back to clipboard:", e);
+        if (e && (e.name === "AbortError" || e.code === 20)) return; // 사용자가 취소
+        console.warn("Web Share failed, falling back to clipboard:", e);
       }
     }
-    // Fallback: 텍스트 복사 + 모달
-    setSS(true);
+
+    // Fallback: URL 클립보드 복사
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      setSS(true); // 최후 fallback — 수동 복사 모달
+    }
   };
 
   // 결과 화면을 PNG로 저장 — 워터마크 + iOS fallback 포함
@@ -814,12 +851,12 @@ export default function SajuDogApp() {
                 border:`4px solid ${C.cardBorder}`,marginBottom:10,boxShadow:C.shadow,
               }}>{saving?"⏳ 이미지 만드는 중...":"📸 결과 이미지로 저장하기"}</button>
 
-              <button onClick={handleKakaoShare} className="pop-btn" style={{
+              <button onClick={handleShare} className="pop-btn" style={{
                 width:"100%",padding:"15px",borderRadius:50,fontSize:15,fontWeight:900,
                 fontFamily:FONT,cursor:"pointer",
                 background:"#fee500",color:"#1a1a1a",
                 border:`4px solid ${C.cardBorder}`,marginBottom:10,boxShadow:C.shadow,
-              }}>📤 카카오톡으로 공유하기</button>
+              }}>📤 친구에게 결과 공유하기</button>
 
               {!ownerPaid && tab!=="compat" && (
                 <button onClick={goCompat} className="pop-btn premium-glow" style={{
