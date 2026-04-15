@@ -6,7 +6,7 @@ import {
   calcSaju, get오행of, get신살, calc합충, calc대운, calc세운, calc월운,
   dog2human, hexRgb,
 } from "../lib/saju";
-import { generateFortune, calcOwnerCompat, getCoupangRecs } from "../lib/fortune";
+import { generateFortune, calcOwnerCompat, getCoupangRecs, 오행해설, 신살사전, 합충해설, 대운해설 } from "../lib/fortune";
 import coupangCache from "../public/coupang-recs.json";
 import { encodeShareData, decodeShareData } from "../lib/shareCodec";
 import AdBanner from "./AdBanner";
@@ -133,11 +133,8 @@ export default function SajuDogApp() {
 
   const [showShare,setSS] = useState(false);
   const [copied,setCopied] = useState(false);
-  const [capturing,setCapturing] = useState(false);
-  const [saving,setSaving] = useState(false);
 
   const resultRef = useRef(null);
-  const shareRef = useRef(null);
 
   const loadMsgs = ["🔮 천간지지를 배열하는 중...","☯ 음양오행의 균형을 살피는 중...","📜 십성과 신살을 분석하는 중...","🐾 대운의 흐름을 읽는 중...","⭐ 2026년 토정비결을 작성하는 중..."];
 
@@ -272,137 +269,6 @@ export default function SajuDogApp() {
     }
   };
 
-  // 결과 화면을 PNG로 저장 — 워터마크 + iOS fallback 포함
-  const handleDownloadImage = async () => {
-    if(!result || !resultRef.current || saving) return;
-    setSaving(true);
-    setCapturing(true);
-    // DOM 업데이트 대기 (capture-hide 적용)
-    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-
-    // 모든 자손 요소의 animation을 강제로 종료하고 opacity:1 인라인 주입
-    // (CSS !important 규칙이 html2canvas 환경에서 무시되는 경우에 대한 강제 대응)
-    const node0 = resultRef.current;
-    const allDescendants = node0 ? node0.querySelectorAll("*") : [];
-    const prevStyles = [];
-    allDescendants.forEach((el) => {
-      prevStyles.push({
-        el,
-        animation: el.style.animation,
-        opacity: el.style.opacity,
-        transform: el.style.transform,
-      });
-      el.style.animation = "none";
-      el.style.opacity = "1";
-      // transform은 레이아웃에 영향 있을 수 있으니 안 건드림
-    });
-
-    // 웹폰트 로딩 확인
-    if (document.fonts && document.fonts.ready) {
-      try { await document.fonts.ready; } catch {}
-    }
-    // 레이아웃 안정화
-    await new Promise(r => setTimeout(r, 150));
-
-    try {
-      const html2canvas = (await import("html2canvas")).default;
-      const node = resultRef.current;
-      const srcCanvas = await html2canvas(node, {
-        backgroundColor: "#ffe6f0",
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        windowWidth: node.scrollWidth,
-        windowHeight: node.scrollHeight,
-        // html2canvas는 DOM을 clone해서 off-screen에서 렌더하므로
-        // clone된 doc에 애니메이션 무효화 스타일을 주입해야 fadeIn 등이 초기 상태(opacity:0)로 찍히지 않음
-        onclone: (clonedDoc) => {
-          const style = clonedDoc.createElement("style");
-          style.textContent = `
-            *,*::before,*::after{animation:none !important;transition:none !important}
-            *{opacity:1 !important}
-          `;
-          clonedDoc.head.appendChild(style);
-        },
-      });
-
-      console.log("[capture] src canvas:", srcCanvas.width, "x", srcCanvas.height);
-
-      // 워터마크 바 높이: scale:2 감안해서 물리 픽셀 기준 120px
-      const barH = 120;
-      const w = srcCanvas.width;
-      const h = srcCanvas.height + barH;
-
-      // 원본 + 워터마크 합성용 새 캔버스
-      const canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext("2d");
-
-      // 배경 채우기 (원본 영역 밖 여백 방지)
-      ctx.fillStyle = "#ffe6f0";
-      ctx.fillRect(0, 0, w, h);
-
-      // 원본 결과 캡처 복사
-      ctx.drawImage(srcCanvas, 0, 0);
-
-      // 워터마크 바: 흰 배경 + 상단 네이비 라인
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, srcCanvas.height, w, barH);
-      ctx.fillStyle = "#1a0033";
-      ctx.fillRect(0, srcCanvas.height, w, 6);
-
-      // 워터마크 텍스트 (canvas-safe 폰트 사용)
-      ctx.fillStyle = "#1a0033";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.font = "900 34px 'Pretendard Variable', Pretendard, -apple-system, sans-serif";
-      ctx.fillText("🐾 개팔자 · 우리 강아지 사주풀이", w/2, srcCanvas.height + 42);
-      ctx.fillStyle = "#ff3e9d";
-      ctx.font = "800 26px 'Pretendard Variable', Pretendard, -apple-system, sans-serif";
-      ctx.fillText("gaepalja-nextjs.vercel.app", w/2, srcCanvas.height + 85);
-
-      const filename = `개팔자_${result.name}_${Date.now()}.png`;
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-
-      if (isIOS) {
-        // iOS Safari는 download 속성 무시 → 새 탭에 이미지 띄우고 안내
-        const dataUrl = canvas.toDataURL("image/png");
-        const win = window.open();
-        if (win) {
-          win.document.write(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>${filename}</title><style>body{margin:0;padding:16px;background:#ffe6f0;font-family:-apple-system,sans-serif;text-align:center}img{max-width:100%;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.15)}p{color:#1a0033;font-weight:700;margin-top:16px;font-size:14px;line-height:1.5}</style></head><body><img src="${dataUrl}" alt="개팔자 결과"/><p>👆 이미지를 <b>길게 눌러</b><br/>'사진에 저장'을 선택해주세요</p></body></html>`);
-          win.document.close();
-        } else {
-          alert("팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요.");
-        }
-      } else {
-        canvas.toBlob((blob) => {
-          if(!blob) return;
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.href = url;
-          link.download = filename;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          setTimeout(() => URL.revokeObjectURL(url), 1000);
-        }, "image/png");
-      }
-    } catch (e) {
-      console.error("이미지 저장 실패:", e);
-      alert("이미지 저장에 실패했습니다. 다시 시도해주세요.");
-    } finally {
-      // 인라인 스타일 원복
-      prevStyles.forEach(({ el, animation, opacity }) => {
-        el.style.animation = animation || "";
-        el.style.opacity = opacity || "";
-      });
-      setCapturing(false);
-      setSaving(false);
-    }
-  };
-
   return (
     <div style={{minHeight:"100vh",background:C.bg,color:C.text,fontFamily:FONT,position:"relative"}}>
       <style>{`
@@ -424,9 +290,6 @@ export default function SajuDogApp() {
         .pop-btn{transition:all 0.15s}
         .pop-btn:hover{transform:translate(-2px,-2px)}
         .pop-btn:active{transform:translate(0,0)}
-        .capturing .capture-hide{display:none !important}
-        .capturing .anim,.capturing [class*="anim-d"]{animation:none !important;opacity:1 !important;transform:none !important}
-        .capturing *{animation-play-state:paused !important}
       `}</style>
 
       <PopParticles/>
@@ -535,15 +398,15 @@ export default function SajuDogApp() {
 
         {/* ═══ RESULT ═══ */}
         {step==="result"&&result&&(
-          <div ref={resultRef} className={capturing?"capturing":""} style={{animation:"fadeIn 0.5s ease-out"}}>
+          <div ref={resultRef} style={{animation:"fadeIn 0.5s ease-out"}}>
             <div className="anim" style={{textAlign:"center",marginBottom:18}}>
               <h2 style={{fontSize:28,fontWeight:900,color:C.text,marginBottom:4}}>{result.name}</h2>
               <p style={{fontSize:12,color:C.textMid,fontWeight:700}}>{result.breed} · {result.gender} · {birthYear}.{birthMonth}.{birthDay}</p>
             </div>
 
-            <div className="capture-hide"><AdBanner type="result"/></div>
+            <div><AdBanner type="result"/></div>
 
-            <div className="anim anim-d1 capture-hide" style={{display:"flex",gap:8,marginBottom:16,overflowX:"auto",whiteSpace:"nowrap",paddingBottom:6}}>
+            <div className="anim anim-d1" style={{display:"flex",gap:8,marginBottom:16,overflowX:"auto",whiteSpace:"nowrap",paddingBottom:6}}>
               {[
                 {id:"saju",label:"사주원국"},
                 {id:"fortune",label:"토정비결"},
@@ -566,10 +429,16 @@ export default function SajuDogApp() {
                 </div>
                 {result.합충.length>0&&(
                   <div className="anim anim-d3" style={card}>
-                    <h3 style={secT}>⚡ 합·충</h3>
-                    <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+                    <h3 style={secT}>⚡ 합·충의 기운</h3>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:14}}>
                       {result.합충.map((r,i)=>(<span key={i} style={{padding:"6px 12px",borderRadius:50,fontSize:12,fontWeight:900,background:r.type==="합"?C.green:C.red,color:"#fff",border:`2px solid ${C.cardBorder}`}}>{r.detail}</span>))}
                     </div>
+                    {[...new Set(result.합충.map(r=>r.type))].map(t=>(
+                      <div key={t} style={{padding:"10px 14px",borderRadius:12,background:t==="합"?"#e8f8ee":"#fff0f0",border:`2px solid ${C.cardBorder}`,marginBottom:8}}>
+                        <div style={{fontSize:12,fontWeight:900,color:t==="합"?C.green:C.red,marginBottom:4}}>{t==="합"?"🔗 합(合) — 조화":"💥 충(沖) — 긴장"}</div>
+                        <p style={{fontSize:12,color:C.textMid,lineHeight:1.7,fontWeight:700}}>{합충해설[t]}</p>
+                      </div>
+                    ))}
                   </div>
                 )}
                 <div className="anim anim-d3" style={card}>
@@ -586,18 +455,73 @@ export default function SajuDogApp() {
                   </div>
                   {result.missing.length>0&&<p style={{fontSize:12,color:C.pinkDark,marginTop:12,fontWeight:900}}>⚠️ 부족: {result.missing.map(e=>`${오행명[e]}(${e})`).join(", ")}</p>}
                 </div>
+                {(() => { const x = 오행해설[result.el]; return (
+                  <div className="anim anim-d4" style={{...card,background:`${오행색[result.el]}15`,borderColor:오행색[result.el]}}>
+                    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+                      <div style={{width:48,height:48,borderRadius:"50%",background:`${오행색[result.el]}33`,border:`3px solid ${C.cardBorder}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,boxShadow:"2px 2px 0 #1a0033",flexShrink:0}}>{오행이모지[result.el]}</div>
+                      <div>
+                        <div style={{fontSize:15,fontWeight:900,color:오행색[result.el]}}>{x.title}</div>
+                        <div style={{fontSize:11,color:C.textMid,fontWeight:700,marginTop:2}}>{x.intro}</div>
+                      </div>
+                    </div>
+                    <p style={{fontSize:13,color:C.textMid,lineHeight:1.9,fontWeight:700,marginBottom:10}}>{x.body}</p>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                      {x.키워드.map(k=>(<span key={k} style={{padding:"4px 10px",borderRadius:50,fontSize:10,fontWeight:900,background:"#fff",color:오행색[result.el],border:`2px solid ${오행색[result.el]}`}}># {k}</span>))}
+                    </div>
+                  </div>
+                );})()}
                 <div className="anim anim-d4" style={card}>
-                  <h3 style={secT}>⭐ 신살</h3>
-                  <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{result.신살.map((s,i)=>(<span key={i} style={{padding:"6px 14px",borderRadius:50,fontSize:11,fontWeight:900,background:C.cyan,color:C.text,border:`2px solid ${C.cardBorder}`}}>✦ {s}</span>))}</div>
+                  <h3 style={secT}>⭐ 타고난 신살(神殺)</h3>
+                  <p style={{fontSize:12,color:C.textMid,lineHeight:1.7,fontWeight:700,marginBottom:12}}>신살은 사주에 깃든 특별한 기운입니다. {result.name}이 타고난 기운을 풀어드립니다.</p>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:14}}>
+                    {result.신살.map((s,i)=>(<span key={i} style={{padding:"6px 14px",borderRadius:50,fontSize:11,fontWeight:900,background:C.cyan,color:C.text,border:`2px solid ${C.cardBorder}`}}>✦ {s}</span>))}
+                  </div>
+                  <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                    {result.신살.map((s,i)=>{const desc=신살사전[s];if(!desc)return null;return(
+                      <div key={i} style={{padding:"10px 14px",borderRadius:12,background:"#f7fafe",border:`2px solid ${C.cardBorder}`}}>
+                        <div style={{fontSize:12,fontWeight:900,color:C.pinkDark,marginBottom:4}}>✦ {s}</div>
+                        <p style={{fontSize:12,color:C.textMid,lineHeight:1.7,fontWeight:700}}>{desc}</p>
+                      </div>
+                    );})}
+                  </div>
                 </div>
                 <div className="anim anim-d5" style={card}>
-                  <h3 style={secT}>🐾 타고난 기질</h3>
-                  <p style={{fontSize:16,fontWeight:900,color:오행색[result.el],marginBottom:12}}>"{result.fortune.성격.title}"</p>
-                  {result.fortune.성격.traits.map((t,i)=><p key={i} style={{fontSize:13,color:C.textMid,lineHeight:1.8,marginBottom:4,fontWeight:700}}>• {t}</p>)}
+                  <h3 style={secT}>🐾 {result.name}의 타고난 기질</h3>
+                  <div style={{padding:"14px 16px",borderRadius:14,background:`${오행색[result.el]}15`,border:`3px dashed ${오행색[result.el]}`,marginBottom:14,textAlign:"center"}}>
+                    <div style={{fontSize:18,fontWeight:900,color:오행색[result.el],marginBottom:4}}>"{result.fortune.성격.title}"</div>
+                    <div style={{fontSize:12,color:C.textMid,fontWeight:700,fontStyle:"italic"}}>— {result.fortune.성격.catchphrase} —</div>
+                  </div>
+                  <div style={{marginBottom:14}}>
+                    {result.fortune.성격.traits.map((t,i)=>(
+                      <div key={i} style={{display:"flex",gap:8,alignItems:"flex-start",marginBottom:8}}>
+                        <span style={{color:오행색[result.el],fontWeight:900,fontSize:14,lineHeight:1.7,flexShrink:0}}>✦</span>
+                        <p style={{fontSize:13,color:C.textMid,lineHeight:1.7,fontWeight:700}}>{t}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{padding:"12px 14px",borderRadius:12,background:C.yellow,border:`3px solid ${C.cardBorder}`}}>
+                    <div style={{fontSize:11,fontWeight:900,color:C.text,letterSpacing:1,marginBottom:6}}>💖 매력 포인트</div>
+                    <p style={{fontSize:13,color:C.text,lineHeight:1.9,fontWeight:700}}>{result.fortune.성격.매력}</p>
+                  </div>
                 </div>
                 <div className="anim anim-d6" style={card}>
-                  <h3 style={secT}>💊 건강운</h3>
-                  <p style={{fontSize:13,color:C.textMid,lineHeight:1.9,fontWeight:700}}>{result.fortune.건강}</p>
+                  <h3 style={secT}>💊 건강과 생활 가이드</h3>
+                  <p style={{fontSize:13,color:C.textMid,lineHeight:1.9,fontWeight:700,marginBottom:14}}>{result.fortune.건강.개요}</p>
+                  <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                    {[
+                      {icon:"⚠️",label:"주의할 점",color:C.red,text:result.fortune.건강.주의},
+                      {icon:"🍖",label:"추천 음식",color:C.green,text:result.fortune.건강.음식},
+                      {icon:"🐕",label:"권장 활동",color:C.cyan,text:result.fortune.건강.활동},
+                    ].map(row=>(
+                      <div key={row.label} style={{padding:"10px 14px",borderRadius:12,background:"#f7fafe",border:`2px solid ${C.cardBorder}`}}>
+                        <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                          <span style={{fontSize:14}}>{row.icon}</span>
+                          <span style={{fontSize:12,fontWeight:900,color:C.text}}>{row.label}</span>
+                        </div>
+                        <p style={{fontSize:12,color:C.textMid,lineHeight:1.7,fontWeight:700}}>{row.text}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -606,17 +530,26 @@ export default function SajuDogApp() {
               <div>
                 <div className="anim" style={card}>
                   <h3 style={secT}>📖 2026년 토정비결</h3>
-                  <div style={{textAlign:"center",marginBottom:14,padding:16,background:C.yellow,borderRadius:12,border:`3px solid ${C.cardBorder}`}}>
+                  <p style={{fontSize:12,color:C.textMid,lineHeight:1.7,fontWeight:700,marginBottom:14}}>
+                    사주를 기반으로 풀어본 {result.name}의 2026년 운세입니다. 천천히 읽어보며 올 한 해 {result.name}에게 어떤 손길이 필요할지 떠올려보세요.
+                  </p>
+                  <div style={{textAlign:"center",marginBottom:16,padding:16,background:C.yellow,borderRadius:12,border:`3px solid ${C.cardBorder}`}}>
                     <div style={{fontSize:18,fontWeight:900,color:C.text,letterSpacing:1,marginBottom:4}}>{result.fortune.총운[0]}</div>
                     <div style={{fontSize:12,color:C.textMid,fontWeight:700}}>{result.fortune.총운[1]}</div>
                   </div>
-                  <p style={{fontSize:14,color:C.textMid,lineHeight:2.0,fontWeight:700}}>{result.fortune.총운[2]}</p>
+                  <p style={{fontSize:14,color:C.textMid,lineHeight:2.0,fontWeight:700,whiteSpace:"pre-line"}}>{result.fortune.총운[2]}</p>
                 </div>
               </div>
             )}
 
             {tab==="monthly"&&(
               <div>
+                <div className="anim" style={{...card,background:C.yellow}}>
+                  <h3 style={secT}>📅 {result.name}의 2026년 월별 흐름</h3>
+                  <p style={{fontSize:12,color:C.textMid,lineHeight:1.8,fontWeight:700}}>
+                    같은 한 해라도 달마다 들어오는 기운은 다릅니다. 아래는 {result.name}의 사주와 어우러지는 올해 12개월의 흐름과, 그 달에 꼭 챙기면 좋은 실천 팁입니다.
+                  </p>
+                </div>
                 {result.월운.map((m,i)=>{const f=result.fortune.월별[m.month];return(
                   <div key={m.month} className="anim" style={{...card,animationDelay:`${i*0.04}s`}}>
                     <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
@@ -624,13 +557,17 @@ export default function SajuDogApp() {
                         <div style={{fontSize:18,fontWeight:900}}>{m.month}</div>
                         <div style={{fontSize:9,fontWeight:700}}>월</div>
                       </div>
-                      <div style={{flex:1}}>
-                        <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:4}}>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:4,flexWrap:"wrap"}}>
                           <span style={{fontSize:15,fontWeight:900,color:오행색[m.오행]}}>{m.간}{m.지}</span>
                           <span style={{fontSize:10,color:C.textLight,fontWeight:700}}>{m.십성}·{m.운성}</span>
                         </div>
-                        <div style={{fontSize:12,color:C.text,marginBottom:3,letterSpacing:0.5,fontWeight:900}}>{f.한자}</div>
-                        <p style={{fontSize:12,color:C.textMid,lineHeight:1.7,fontWeight:700}}>{f.한글}</p>
+                        <div style={{fontSize:12,color:C.text,marginBottom:4,letterSpacing:0.5,fontWeight:900}}>{f.한자}</div>
+                        <p style={{fontSize:12,color:C.textMid,lineHeight:1.7,fontWeight:700,marginBottom:8}}>{f.한글}</p>
+                        <div style={{padding:"8px 12px",borderRadius:10,background:"#fef3f7",border:`2px solid ${C.cardBorder}`}}>
+                          <div style={{fontSize:10,fontWeight:900,color:C.pinkDark,marginBottom:3}}>💡 이달의 실천 팁</div>
+                          <p style={{fontSize:11,color:C.textMid,lineHeight:1.7,fontWeight:700}}>{f.조언}</p>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -640,7 +577,11 @@ export default function SajuDogApp() {
 
             {tab==="daewoon"&&(
               <div>
-                <div className="anim" style={{...card,background:C.cyan}}>
+                <div className="anim" style={card}>
+                  <h3 style={secT}>🌊 대운(大運)이란?</h3>
+                  <p style={{fontSize:13,color:C.textMid,lineHeight:1.9,fontWeight:700}}>{대운해설}</p>
+                </div>
+                <div className="anim anim-d1" style={{...card,background:C.cyan}}>
                   <h3 style={secT}>🐾 {result.breed} 생애 정보</h3>
                   <div style={{display:"flex",gap:8,marginBottom:14}}>
                     {[{l:"평균 수명",v:`${result.평균수명}세`},{l:"체급",v:result.체급},{l:"대운 주기",v:`${result.대운주기}년`}].map(x=>(
@@ -660,8 +601,8 @@ export default function SajuDogApp() {
                   </div>
                   <p style={{fontSize:11,color:C.text,marginTop:8,fontWeight:700}}>※ 인간 대운 10년 → {result.breed} 대운 <strong>{result.대운주기}년</strong> 주기</p>
                 </div>
-                <div className="anim anim-d1" style={card}>
-                  <h3 style={secT}>🌊 대운 흐름</h3>
+                <div className="anim anim-d2" style={card}>
+                  <h3 style={secT}>🌊 {result.name}의 대운 흐름</h3>
                   <div style={{position:"relative"}}>
                     {result.대운.map((d,i)=>{const el=get오행of(d.간);const isCur=result.currentDogAge>=d.age&&result.currentDogAge<d.endAge;const isPast=result.currentDogAge>=d.endAge;return(
                       <div key={i} className="anim" style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:10,animationDelay:`${i*0.05}s`,opacity:d.pastLifespan?0.3:isPast?0.55:1}}>
@@ -843,14 +784,7 @@ export default function SajuDogApp() {
               </div>
             )}
 
-            <div className="capture-hide" style={{marginTop:20}}>
-              <button onClick={handleDownloadImage} disabled={saving} className="pop-btn" style={{
-                width:"100%",padding:"15px",borderRadius:50,fontSize:15,fontWeight:900,
-                fontFamily:FONT,cursor:saving?"wait":"pointer",
-                background:saving?"#e8e0ed":C.cyan,color:C.text,
-                border:`4px solid ${C.cardBorder}`,marginBottom:10,boxShadow:C.shadow,
-              }}>{saving?"⏳ 이미지 만드는 중...":"📸 결과 이미지로 저장하기"}</button>
-
+            <div style={{marginTop:20}}>
               <button onClick={handleShare} className="pop-btn" style={{
                 width:"100%",padding:"15px",borderRadius:50,fontSize:15,fontWeight:900,
                 fontFamily:FONT,cursor:"pointer",
@@ -879,7 +813,7 @@ export default function SajuDogApp() {
 
             {showShare&&(
               <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:100,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={()=>setSS(false)}>
-                <div onClick={e=>e.stopPropagation()} ref={shareRef} style={{background:"#fff",borderRadius:24,padding:24,maxWidth:340,width:"100%",border:`4px solid ${C.cardBorder}`,boxShadow:C.shadowLarge}}>
+                <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:24,padding:24,maxWidth:340,width:"100%",border:`4px solid ${C.cardBorder}`,boxShadow:C.shadowLarge}}>
                   <div style={{background:C.bg,borderRadius:18,padding:20,textAlign:"center",border:`3px solid ${C.cardBorder}`,marginBottom:16}}>
                     <Image src="/logo.png" alt="개팔자" width={80} height={80} style={{borderRadius:12,border:`2px solid ${C.cardBorder}`,marginBottom:8}}/>
                     <div style={{fontSize:18,fontWeight:900,color:C.text,marginBottom:4}}>{result.name}</div>
@@ -901,7 +835,7 @@ export default function SajuDogApp() {
               </div>
             )}
 
-            <div className="capture-hide" style={{textAlign:"center",marginTop:14,paddingBottom:20}}>
+            <div style={{textAlign:"center",marginTop:14,paddingBottom:20}}>
               <button onClick={reset} className="pop-btn" style={{background:C.cyan,color:C.text,border:`3px solid ${C.cardBorder}`,borderRadius:50,padding:"13px 36px",fontSize:14,fontWeight:900,fontFamily:FONT,cursor:"pointer",boxShadow:C.shadow}}>🔄 다시 감정하기</button>
               <p style={{fontSize:10,color:C.textLight,marginTop:14,fontWeight:700}}>※ 본 사주풀이는 재미를 위한 것입니다 🐶</p>
             </div>
